@@ -75,7 +75,7 @@ export default function TeacherSignupPage() {
       
       // Redirect to dashboard
       router.push('/teacher/dashboard');
-    } catch (err) {
+    } catch {
       setError('Account creation failed. Please try again.');
     } finally {
       setIsLoading(false);

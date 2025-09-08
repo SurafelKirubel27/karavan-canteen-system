@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import KaravanLogo from '@/components/KaravanLogo';
 
@@ -56,7 +56,7 @@ const mockOngoingOrders: OngoingOrder[] = [
 
 export default function OngoingOrdersPage() {
   const { user, logout } = useAuth();
-  const [orders, setOrders] = useState<OngoingOrder[]>(mockOngoingOrders);
+  const [orders] = useState<OngoingOrder[]>(mockOngoingOrders);
   const [refreshing, setRefreshing] = useState(false);
 
   const getStatusInfo = (status: string) => {

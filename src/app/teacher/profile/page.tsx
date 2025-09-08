@@ -61,7 +61,7 @@ export default function TeacherProfilePage() {
       
       setIsEditing(false);
       alert('Profile updated successfully!');
-    } catch (error) {
+    } catch {
       alert('Failed to update profile. Please try again.');
     } finally {
       setIsSaving(false);
@@ -93,7 +93,7 @@ export default function TeacherProfilePage() {
       });
       
       alert('Password changed successfully!');
-    } catch (error) {
+    } catch {
       alert('Failed to change password. Please try again.');
     } finally {
       setIsSaving(false);
