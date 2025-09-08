@@ -211,7 +211,7 @@ export default function RecentOrdersPage() {
           <div className="text-center py-12">
             <div className="text-6xl mb-4">📋</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No recent orders</h3>
-            <p className="text-gray-600 mb-6">You haven't placed any orders yet</p>
+            <p className="text-gray-600 mb-6">You haven&apos;t placed any orders yet</p>
             <Link href="/teacher/dashboard" className="bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-6 rounded-lg font-medium transition-colors">
               Browse Menu
             </Link>

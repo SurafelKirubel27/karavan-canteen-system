@@ -299,7 +299,7 @@ export default function ReportsPage() {
             <div>
               <h3 className="text-lg font-semibold text-blue-900 mb-2">Advanced Features Coming Soon</h3>
               <p className="text-blue-800 mb-4">
-                We're working on advanced reporting features including automated scheduling, 
+                We&apos;re working on advanced reporting features including automated scheduling,
                 custom report builders, and real-time analytics dashboards.
               </p>
               <ul className="text-sm text-blue-700 space-y-1">

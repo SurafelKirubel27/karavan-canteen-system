@@ -77,7 +77,7 @@ export default function TeacherDashboard() {
     } else {
       setFilteredItems([]);
     }
-  }, [searchTerm]);
+  }, [searchTerm, allMenuItems]);
 
   const handleAddToCart = (item: MenuItem) => {
     addToCart({
@@ -227,7 +227,7 @@ export default function TeacherDashboard() {
             {/* Search Results */}
             {searchTerm && (
               <div className="mb-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Search Results for "{searchTerm}"</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">Search Results for &quot;{searchTerm}&quot;</h2>
                 {filteredItems.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredItems.map((item) => (
@@ -395,7 +395,7 @@ export default function TeacherDashboard() {
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-3">Food Delivered</h3>
               <p className="text-gray-600">
-                Your order will be confirmed and prepared fresh. We'll deliver it directly to your specified campus location.
+                Your order will be confirmed and prepared fresh. We&apos;ll deliver it directly to your specified campus location.
               </p>
             </div>
           </div>

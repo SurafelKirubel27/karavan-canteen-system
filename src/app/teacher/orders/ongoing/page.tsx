@@ -257,7 +257,7 @@ export default function OngoingOrdersPage() {
           <div className="text-center py-12">
             <div className="text-6xl mb-4">🍽️</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No ongoing orders</h3>
-            <p className="text-gray-600 mb-6">You don't have any active orders at the moment</p>
+            <p className="text-gray-600 mb-6">You don&apos;t have any active orders at the moment</p>
             <Link href="/teacher/dashboard" className="bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-6 rounded-lg font-medium transition-colors">
               Order Food Now
             </Link>
@@ -277,7 +277,7 @@ export default function OngoingOrdersPage() {
               <h4 className="font-medium text-gray-900 mb-2">Delivery Information</h4>
               <p className="text-sm text-gray-600">
                 Orders are typically delivered within 15-25 minutes during peak hours.
-                You'll receive a call when your order is ready for delivery.
+                You&apos;ll receive a call when your order is ready for delivery.
               </p>
             </div>
           </div>

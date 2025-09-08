@@ -233,7 +233,7 @@ export default function CanteenOngoingOrdersPage() {
                       <div className="flex space-x-2">
                         {order.status !== 'delivering' && (
                           <button
-                            onClick={() => handleStatusUpdate(order.id, getNextStatus(order.status) as any)}
+                            onClick={() => handleStatusUpdate(order.id, getNextStatus(order.status) as 'preparing' | 'ready' | 'delivering' | 'completed')}
                             disabled={isUpdating === order.id}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                           >

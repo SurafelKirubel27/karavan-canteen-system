@@ -34,7 +34,7 @@ export default function OrderSuccessPage() {
           {/* Success Message */}
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Placed Successfully!</h1>
           <p className="text-gray-600 mb-6">
-            Thank you for your order. We're preparing your delicious meal!
+            Thank you for your order. We&apos;re preparing your delicious meal!
           </p>
 
           {/* Order Details */}
