@@ -1,0 +1,349 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.container {
+    max-width: 500px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.title {
+    font-size: 3rem;
+    font-weight: 700;
+    color: #776e65;
+    margin: 0;
+}
+
+.score-container {
+    display: flex;
+    gap: 10px;
+}
+
+.score-box {
+    background: #bbada0;
+    padding: 10px 15px;
+    border-radius: 10px;
+    text-align: center;
+    min-width: 70px;
+}
+
+.score-label {
+    font-size: 0.8rem;
+    color: #eee4da;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.score {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: white;
+}
+
+.game-intro {
+    margin-bottom: 20px;
+}
+
+.game-explanation {
+    color: #776e65;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 15px;
+}
+
+.restart-button {
+    background: #8f7a66;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.restart-button:hover {
+    background: #9f8a76;
+    transform: translateY(-2px);
+}
+
+.game-container {
+    position: relative;
+    background: #bbada0;
+    border-radius: 15px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.grid-container {
+    position: relative;
+    z-index: 1;
+}
+
+.grid-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.grid-row:last-child {
+    margin-bottom: 0;
+}
+
+.grid-cell {
+    width: 80px;
+    height: 80px;
+    background: rgba(238, 228, 218, 0.35);
+    border-radius: 8px;
+}
+
+.tile-container {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    z-index: 2;
+}
+
+.tile {
+    position: absolute;
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2rem;
+    font-weight: 700;
+    transition: all 0.15s ease-in-out;
+    animation: appear 0.2s ease-in-out;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+@keyframes appear {
+    0% {
+        opacity: 0;
+        transform: scale(0);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.tile-merged {
+    animation: pop 0.2s ease-in-out;
+}
+
+@keyframes pop {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Tile colors */
+.tile-2 { background: #eee4da; color: #776e65; }
+.tile-4 { background: #ede0c8; color: #776e65; }
+.tile-8 { background: #f2b179; color: #f9f6f2; }
+.tile-16 { background: #f59563; color: #f9f6f2; }
+.tile-32 { background: #f67c5f; color: #f9f6f2; }
+.tile-64 { background: #f65e3b; color: #f9f6f2; }
+.tile-128 { background: #edcf72; color: #f9f6f2; font-size: 1.7rem; }
+.tile-256 { background: #edcc61; color: #f9f6f2; font-size: 1.7rem; }
+.tile-512 { background: #edc850; color: #f9f6f2; font-size: 1.7rem; }
+.tile-1024 { background: #edc53f; color: #f9f6f2; font-size: 1.4rem; }
+.tile-2048 { background: #edc22e; color: #f9f6f2; font-size: 1.4rem; box-shadow: 0 0 20px rgba(237, 194, 46, 0.5); }
+
+.game-message {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 15px;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    text-align: center;
+}
+
+.game-message.game-won {
+    background: rgba(237, 194, 46, 0.95);
+    color: #f9f6f2;
+}
+
+.game-message.game-over {
+    background: rgba(238, 228, 218, 0.95);
+    color: #776e65;
+}
+
+.game-message p {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 20px;
+}
+
+.lower {
+    display: flex;
+    gap: 10px;
+}
+
+.keep-playing-button,
+.retry-button {
+    background: #8f7a66;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.keep-playing-button:hover,
+.retry-button:hover {
+    background: #9f8a76;
+}
+
+.game-controls {
+    margin-bottom: 20px;
+}
+
+.mobile-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.control-row {
+    display: flex;
+    gap: 10px;
+}
+
+.control-button {
+    width: 50px;
+    height: 50px;
+    background: #8f7a66;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.control-button:hover {
+    background: #9f8a76;
+    transform: translateY(-2px);
+}
+
+.footer {
+    text-align: center;
+    color: #776e65;
+    font-size: 0.8rem;
+}
+
+/* Responsive design */
+@media (max-width: 600px) {
+    .container {
+        padding: 20px;
+        max-width: 400px;
+    }
+
+    .title {
+        font-size: 2.5rem;
+    }
+
+    .grid-cell,
+    .tile {
+        width: 70px;
+        height: 70px;
+    }
+
+    .tile {
+        font-size: 1.8rem;
+    }
+
+    .tile-128,
+    .tile-256,
+    .tile-512 {
+        font-size: 1.5rem;
+    }
+
+    .tile-1024,
+    .tile-2048 {
+        font-size: 1.2rem;
+    }
+
+    .game-controls {
+        display: block;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        max-width: 350px;
+    }
+
+    .grid-cell,
+    .tile {
+        width: 60px;
+        height: 60px;
+    }
+
+    .tile {
+        font-size: 1.5rem;
+    }
+
+    .tile-128,
+    .tile-256,
+    .tile-512 {
+        font-size: 1.3rem;
+    }
+
+    .tile-1024,
+    .tile-2048 {
+        font-size: 1rem;
+    }
+}
+
+@media (min-width: 601px) {
+    .game-controls {
+        display: none;
+    }
+}
