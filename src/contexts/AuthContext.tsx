@@ -103,66 +103,67 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signUp = async (email: string, password: string, userData: Omit<User, 'id' | 'email'>) => {
     try {
-      // Sign up with Supabase Auth (completely disable email confirmation)
+      console.log('Starting signup process for:', email);
+
+      // Sign up with Supabase Auth with email confirmation disabled
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: undefined, // No email redirect
-          skipConfirmation: true, // Skip email confirmation
+          emailRedirectTo: undefined,
           data: {
-            email_confirmed: true // Mark as confirmed
+            email_confirmed: true,
+            skip_confirmation: true
           }
         }
       });
 
       if (error) {
+        console.error('Supabase auth signup error:', error);
         return { success: false, error: error.message };
       }
 
       if (data.user) {
-        console.log('Auth user created:', data.user.id);
+        console.log('Auth user created successfully:', data.user.id);
+        console.log('User email confirmed status:', data.user.email_confirmed_at);
 
-        // Force email confirmation if not already confirmed
-        if (!data.user.email_confirmed_at) {
-          console.log('Manually confirming email...');
-          const { error: confirmError } = await supabase.auth.admin.updateUserById(
-            data.user.id,
-            { email_confirm: true }
-          );
+        // Wait a moment for the user to be fully created
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-          if (confirmError) {
-            console.warn('Could not auto-confirm email:', confirmError.message);
-          } else {
-            console.log('Email auto-confirmed successfully');
+        // Create user profile in our users table with retry logic
+        console.log('Creating user profile...');
+        let profileError = null;
+        let retryCount = 0;
+        const maxRetries = 3;
+
+        while (retryCount < maxRetries) {
+          const { error } = await supabase
+            .from('users')
+            .insert({
+              id: data.user.id,
+              email,
+              name: userData.name,
+              role: userData.role,
+              department: userData.department || 'General',
+              phone: userData.phone || '+251 911 000 000'
+            });
+
+          if (!error) {
+            console.log('User profile created successfully');
+            return { success: true };
+          }
+
+          profileError = error;
+          retryCount++;
+          console.warn(`Profile creation attempt ${retryCount} failed:`, error.message);
+
+          if (retryCount < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
           }
         }
 
-        // Create user profile in our users table
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert({
-            id: data.user.id,
-            email,
-            name: userData.name,
-            role: userData.role,
-            department: userData.department,
-            phone: userData.phone
-          });
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-          console.error('Profile error details:', {
-            message: profileError.message,
-            details: profileError.details,
-            hint: profileError.hint,
-            code: profileError.code
-          });
-          return { success: false, error: `Profile setup failed: ${profileError.message}. Please run the RLS policy fix script.` };
-        }
-
-        console.log('User profile created successfully');
-        return { success: true, message: 'Account created successfully! You can now sign in.' };
+        console.error('Profile creation failed after all retries:', profileError);
+        return { success: false, error: `Account created but profile setup failed. Please contact support.` };
       }
 
       return { success: false, error: 'Failed to create user account' };
@@ -231,10 +232,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (error) {
         console.error('Auth error:', error);
 
-        // If error is about email not confirmed, try to auto-confirm
+        // Handle email not confirmed errors gracefully
         if (error.message.includes('email not confirmed') || error.message.includes('Email not confirmed')) {
-          console.log('Email not confirmed error detected, attempting auto-fix...');
-          return { success: false, error: 'Please run the email verification fix script and try again.' };
+          console.log('Email not confirmed error detected, providing user-friendly message...');
+          return { success: false, error: 'Your account needs verification. Please contact support or try creating a new account.' };
+        }
+
+        // Handle invalid credentials
+        if (error.message.includes('Invalid login credentials')) {
+          return { success: false, error: 'Invalid email or password. Please check your credentials and try again.' };
         }
 
         return { success: false, error: error.message };

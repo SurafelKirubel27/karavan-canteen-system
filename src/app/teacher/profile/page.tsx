@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import KaravanLogo from '@/components/KaravanLogo';
 
 export default function TeacherProfilePage() {
-  const { user, logout, updateUser } = useAuth();
+  const { user, signOut, updateProfile } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('profile');
   const [isEditing, setIsEditing] = useState(false);
@@ -48,21 +48,25 @@ export default function TeacherProfilePage() {
   const handleSaveProfile = async () => {
     setIsSaving(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Update user context
-      if (updateUser) {
-        updateUser({
-          ...user!,
-          ...profileData
-        });
+      if (!updateProfile) {
+        throw new Error('Update function not available');
       }
-      
-      setIsEditing(false);
-      alert('Profile updated successfully!');
-    } catch {
-      alert('Failed to update profile. Please try again.');
+
+      const result = await updateProfile({
+        name: profileData.name,
+        phone: profileData.phone,
+        department: profileData.department,
+      });
+
+      if (result.success) {
+        setIsEditing(false);
+        alert('Profile updated successfully!');
+      } else {
+        throw new Error(result.error || 'Update failed');
+      }
+    } catch (error) {
+      console.error('Profile update error:', error);
+      alert(`Failed to update profile: ${error instanceof Error ? error.message : 'Please try again.'}`);
     } finally {
       setIsSaving(false);
     }
@@ -115,7 +119,7 @@ export default function TeacherProfilePage() {
               <span className="text-emerald-700 font-medium">Profile</span>
               <button
                 onClick={() => {
-                  logout();
+                  signOut();
                   router.push('/welcome');
                 }}
                 className="text-gray-700 hover:text-red-600"
