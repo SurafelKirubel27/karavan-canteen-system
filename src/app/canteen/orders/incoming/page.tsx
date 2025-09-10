@@ -175,6 +175,61 @@ export default function IncomingOrdersPage() {
     }
   };
 
+  const handleAcceptOrder = async (orderId: string) => {
+    setIsProcessing(orderId);
+
+    try {
+      // Update order status to 'confirmed' in database
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: 'confirmed',
+          estimated_ready_time: new Date(Date.now() + 30 * 60 * 1000).toISOString() // 30 minutes from now
+        })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      // Reload orders to show updated status
+      await loadIncomingOrders();
+      setSelectedOrder(null);
+
+      alert('Order accepted! Estimated ready time set to 30 minutes.');
+    } catch (error) {
+      console.error('Error accepting order:', error);
+      alert('Failed to accept order. Please try again.');
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const handleDeclineOrder = async (orderId: string) => {
+    setIsProcessing(orderId);
+
+    try {
+      // Update order status to 'cancelled' in database
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: 'cancelled'
+        })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      // Remove from incoming orders list
+      setOrders(prev => prev.filter(order => order.id !== orderId));
+      setSelectedOrder(null);
+
+      alert('Order declined and customer notified.');
+    } catch (error) {
+      console.error('Error declining order:', error);
+      alert('Failed to decline order. Please try again.');
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-orange-50">
       {/* Header */}
@@ -250,7 +305,7 @@ export default function IncomingOrdersPage() {
                     {order.special_instructions && (
                       <p className="text-gray-900"><span className="font-medium">Instructions:</span> {order.special_instructions}</p>
                     )}
-                    <p className="text-gray-900"><span className="font-medium">Teacher ID:</span> {order.teacher_id}</p>
+                    <p className="text-gray-900"><span className="font-medium">Teacher:</span> {order.users?.name || 'Unknown'}</p>
                   </div>
                 </div>
 
@@ -261,30 +316,19 @@ export default function IncomingOrdersPage() {
                     {order.order_items?.map((item, index) => (
                       <div key={index} className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
-                          <span className="text-lg">{item.menu_items?.image_url || '🍽️'}</span>
-                          <span className="text-sm text-gray-900 font-medium">{item.menu_items?.name || 'Unknown Item'}</span>
+                          <span className="text-lg">{item.item_image_url || '🍽️'}</span>
+                          <span className="text-sm text-gray-900 font-medium">{item.item_name || 'Unknown Item'}</span>
                           <span className="text-xs text-gray-800">x{item.quantity}</span>
                         </div>
                         <span className="text-sm font-medium text-gray-900">
-                          {(item.price_at_time * item.quantity)} ETB
+                          {item.total_price} ETB
                         </span>
                       </div>
                     )) || <p className="text-sm text-gray-500">No items found</p>}
                   </div>
                 </div>
 
-                {/* Delivery Info */}
-                <div className="p-6 border-b border-gray-100">
-                  <h4 className="font-medium text-gray-900 mb-2">Delivery Information</h4>
-                  <p className="text-sm text-gray-900 mb-2">
-                    <span className="font-medium">Location:</span> {order.deliveryLocation}
-                  </p>
-                  {order.specialInstructions && (
-                    <p className="text-sm text-gray-900">
-                      <span className="font-medium">Special Instructions:</span> {order.specialInstructions}
-                    </p>
-                  )}
-                </div>
+
 
                 {/* Action Buttons */}
                 <div className="p-6">
@@ -421,22 +465,35 @@ export default function IncomingOrdersPage() {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex space-x-3 pt-4">
-                    <button
-                      onClick={() => handleDeclineOrder(selectedOrder.id)}
-                      disabled={isProcessing === selectedOrder.id}
-                      className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-lg font-medium transition-colors disabled:opacity-50"
-                    >
-                      {isProcessing === selectedOrder.id ? 'Processing...' : 'Decline Order'}
-                    </button>
-                    <button
-                      onClick={() => handleAcceptOrder(selectedOrder.id)}
-                      disabled={isProcessing === selectedOrder.id}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-lg font-medium transition-colors disabled:opacity-50"
-                    >
-                      {isProcessing === selectedOrder.id ? 'Processing...' : 'Accept Order'}
-                    </button>
-                  </div>
+                  {selectedOrder.status === 'pending' && (
+                    <div className="flex space-x-3 pt-4">
+                      <button
+                        onClick={() => handleDeclineOrder(selectedOrder.id)}
+                        disabled={isProcessing === selectedOrder.id}
+                        className="flex-1 bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-lg font-medium transition-colors disabled:opacity-50"
+                      >
+                        {isProcessing === selectedOrder.id ? 'Processing...' : 'Decline Order'}
+                      </button>
+                      <button
+                        onClick={() => handleAcceptOrder(selectedOrder.id)}
+                        disabled={isProcessing === selectedOrder.id}
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-4 rounded-lg font-medium transition-colors disabled:opacity-50"
+                      >
+                        {isProcessing === selectedOrder.id ? 'Processing...' : 'Accept Order'}
+                      </button>
+                    </div>
+                  )}
+                  {selectedOrder.status === 'confirmed' && (
+                    <div className="flex space-x-3 pt-4">
+                      <button
+                        onClick={() => handleStartPreparing(selectedOrder.id)}
+                        disabled={isProcessing === selectedOrder.id}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg font-medium transition-colors disabled:opacity-50"
+                      >
+                        {isProcessing === selectedOrder.id ? 'Processing...' : 'Start Preparing'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
