@@ -1,322 +1,181 @@
-# 🍽️ Canteen Management System
+# Karavan - Canteen Management System
 
-A modern, responsive canteen management web application built with Next.js 15, TypeScript, and Tailwind CSS v4. This system allows students and staff to browse menus, place orders, and manage their canteen experience efficiently.
+A modern, full-stack canteen management system built for Sandford School. This application allows teachers to order food and canteen staff to manage orders and menu items.
 
-## 🚀 Technology Stack
+## 🚀 Features
 
-Based on the **Lem Plant** web application architecture:
+### For Teachers
+- **User Registration & Authentication** - Secure signup and login with Supabase
+- **Browse Menu** - View available food items with prices and descriptions
+- **Place Orders** - Add items to cart and place orders with delivery location
+- **Order History** - Track current and past orders
+- **Real-time Updates** - Get notified when order status changes
 
-- **Framework**: Next.js 15.4.5 (Latest)
-- **React**: 19.1.0 (Latest)
-- **TypeScript**: Full TypeScript support
-- **Styling**: Tailwind CSS v4 (Latest)
-- **Build Tool**: Turbopack (Fast development)
-- **Deployment**: Vercel (Recommended)
+### For Canteen Staff
+- **Dashboard** - Overview of daily orders and revenue
+- **Order Management** - View and process incoming orders
+- **Menu Management** - Add, edit, and delete menu items with real database operations
+- **Real-time Monitoring** - Live updates on order status
+
+## 🛠️ Technology Stack
+
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **Styling**: Tailwind CSS v4
 - **Database**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
+- **Real-time**: Supabase Realtime
 
-## 📋 Features
+## 📋 Prerequisites
 
-### 🏠 **Homepage & Navigation**
-- Modern hero section with call-to-action
-- Responsive navigation with mobile menu
-- User authentication status display
-- Quick stats and feature highlights
-
-### 🍽️ **Menu Management**
-- Browse menu items by category
-- Search functionality
-- Detailed item information (ingredients, allergens, nutrition)
-- Real-time availability status
-- Preparation time estimates
-
-### 🛒 **Shopping Cart**
-- Add/remove items with quantity controls
-- Persistent cart storage
-- Price calculations with tax and fees
-- Special instructions support
-- Guest and authenticated user support
-
-### 👤 **User Authentication**
-- Student and staff account types
-- Secure login/signup with validation
-- Profile management
-- Role-based access control
-- Demo credentials for testing
-
-### 💳 **Checkout Process**
-- Order summary and validation
-- Pickup time selection
-- Multiple payment methods
-- Order confirmation and tracking
-- Special dietary requirements
-
-### 📱 **Mobile Responsive**
-- Mobile-first design approach
-- Touch-friendly interface
-- Responsive grid layouts
-- Optimized for all screen sizes
-
-## 🛠️ Local Development Setup
-
-### Prerequisites
 - Node.js 18+ 
-- npm, yarn, or pnpm
+- npm or yarn
+- Supabase account
 
-### Installation
+## 🔧 Installation & Setup
 
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd canteen-management
+   cd canteen-project
    ```
 
 2. **Install dependencies**
    ```bash
    npm install
-   # or
-   yarn install
-   # or
-   pnpm install
    ```
 
-3. **Set up environment variables**
-   ```bash
-   cp .env.example .env.local
-   ```
-   
-   Edit `.env.local` with your configuration:
+3. **Environment Setup**
+   Create a `.env.local` file in the root directory:
    ```env
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-   SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-   NEXT_PUBLIC_APP_URL=http://localhost:3000
-   ```
-
-4. **Run the development server**
-   ```bash
-   npm run dev
-   # or
-   yarn dev
-   # or
-   pnpm dev
-   ```
-
-5. **Open your browser**
-   Navigate to [http://localhost:3000](http://localhost:3000)
-
-## 🌐 Vercel Deployment Setup
-
-### Step 1: Prepare Your Repository
-
-1. **Push your code to GitHub**
-   ```bash
-   git add .
-   git commit -m "Initial canteen management system"
-   git push origin main
-   ```
-
-### Step 2: Deploy to Vercel
-
-1. **Install Vercel CLI** (optional)
-   ```bash
-   npm install -g vercel
-   ```
-
-2. **Connect to Vercel**
-   - Go to [vercel.com](https://vercel.com)
-   - Sign up/login with GitHub
-   - Click "New Project"
-   - Import your repository
-
-3. **Configure Build Settings**
-   - Framework Preset: **Next.js**
-   - Build Command: `npm run build`
-   - Output Directory: `.next`
-   - Install Command: `npm install`
-
-4. **Set Environment Variables**
-   In Vercel dashboard → Project Settings → Environment Variables:
-   ```
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-   NEXT_PUBLIC_APP_URL=https://your-app.vercel.app
    ```
 
-5. **Deploy**
-   - Click "Deploy"
-   - Vercel will automatically build and deploy your app
-   - Get your live URL: `https://your-app.vercel.app`
+4. **Database Setup** ⚠️ **IMPORTANT**
+   
+   **Step 1: Run the main database setup**
+   - Go to your Supabase dashboard → SQL Editor
+   - Copy and paste the entire content from `scripts/setup-database.sql`
+   - Click "Run" to execute the script
+   
+   **Step 2: Create canteen staff user**
+   - In Supabase dashboard → Authentication → Users
+   - Click "Add user"
+   - Email: `karavanstaff@sandfordschool.edu`
+   - Password: `KaravanStaff123`
+   - Email Confirm: Check this box
+   - Click "Create user"
+   - Copy the generated User ID
+   
+   **Step 3: Add canteen staff to users table**
+   - Go back to SQL Editor
+   - Replace `YOUR_USER_ID_HERE` in `scripts/create-canteen-staff.sql` with the actual User ID
+   - Run the modified SQL script
 
-## 🗄️ Supabase Database Setup
+5. **Disable Email Confirmation (Optional for Development)**
+   - Go to Authentication → Settings in Supabase
+   - Turn off "Enable email confirmations"
+   - This allows teachers to sign up without email verification
 
-### Step 1: Create Supabase Project
+6. **Run the development server**
+   ```bash
+   npm run dev
+   ```
 
-1. **Sign up at [supabase.com](https://supabase.com)**
-2. **Create a new project**
-   - Choose organization
-   - Enter project name: "canteen-management"
-   - Set database password
-   - Select region (closest to your users)
+7. **Access the application**
+   - Open [http://localhost:3001](http://localhost:3001)
+   - Choose your role: Teacher or Canteen Staff
 
-### Step 2: Database Schema
+## 👥 User Credentials
 
-Create the following tables in Supabase SQL Editor:
+### Canteen Staff
+- **Email**: karavanstaff@sandfordschool.edu
+- **Password**: KaravanStaff123
 
-```sql
--- Users table
-CREATE TABLE users (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  email VARCHAR UNIQUE NOT NULL,
-  name VARCHAR NOT NULL,
-  role VARCHAR CHECK (role IN ('student', 'staff', 'admin')) NOT NULL,
-  student_id VARCHAR,
-  department VARCHAR,
-  phone VARCHAR,
-  avatar_url VARCHAR,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+### Teachers
+- Sign up with any email address (no restrictions)
+- All teacher accounts are stored in the database
 
--- Menu items table
-CREATE TABLE menu_items (
-  id SERIAL PRIMARY KEY,
-  name VARCHAR NOT NULL,
-  description TEXT,
-  price DECIMAL(10,2) NOT NULL,
-  category VARCHAR NOT NULL,
-  type VARCHAR CHECK (type IN ('food', 'beverage', 'snack')) NOT NULL,
-  image_url VARCHAR,
-  available BOOLEAN DEFAULT true,
-  preparation_time INTEGER DEFAULT 10,
-  ingredients TEXT[],
-  allergens TEXT[],
-  nutritional_info JSONB,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+## 🗄️ Database Schema
 
--- Orders table
-CREATE TABLE orders (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES users(id),
-  status VARCHAR CHECK (status IN ('pending', 'preparing', 'ready', 'completed', 'cancelled')) DEFAULT 'pending',
-  total_amount DECIMAL(10,2) NOT NULL,
-  pickup_time TIMESTAMP WITH TIME ZONE,
-  special_instructions TEXT,
-  payment_method VARCHAR,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+The application uses the following main tables:
+- `users` - User profiles linked to Supabase auth
+- `menu_items` - Food items with prices, categories, and availability
+- `orders` - Customer orders with status tracking and order numbers
+- `order_items` - Individual items within orders with quantities
 
--- Order items table
-CREATE TABLE order_items (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
-  menu_item_id INTEGER REFERENCES menu_items(id),
-  quantity INTEGER NOT NULL,
-  price DECIMAL(10,2) NOT NULL,
-  customizations TEXT[]
-);
-```
+### Key Features:
+- **Row Level Security (RLS)** - Proper access control
+- **Auto-generated Order Numbers** - Format: KRV-YYYY-0001
+- **Real-time Updates** - Changes reflect immediately
+- **Data Validation** - Proper constraints and checks
 
-### Step 3: Row Level Security (RLS)
+## 🎨 Design Features
 
-Enable RLS and create policies:
+- **Modern UI** - Clean, responsive design inspired by delivery apps
+- **Ethiopian Localization** - Uses Ethiopian Birr (ETB) currency
+- **Color Scheme** - Green and light beige theme
+- **Mobile Responsive** - Works on all device sizes
+- **Animated Cart** - Smooth slide-over cart experience
 
-```sql
--- Enable RLS
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+## 🔐 Security
 
--- Users can read their own data
-CREATE POLICY "Users can read own data" ON users
-  FOR SELECT USING (auth.uid() = id);
+- Row Level Security (RLS) policies for all tables
+- JWT-based authentication via Supabase
+- Role-based access control (teacher, canteen, admin)
+- Secure API endpoints with proper authorization
 
--- Users can update their own data
-CREATE POLICY "Users can update own data" ON users
-  FOR UPDATE USING (auth.uid() = id);
+## 📱 Usage
 
--- Users can read their own orders
-CREATE POLICY "Users can read own orders" ON orders
-  FOR SELECT USING (auth.uid() = user_id);
+### For Teachers:
+1. Visit the welcome page at `/welcome`
+2. Choose "I'm a Teacher"
+3. Sign up with any email or log in
+4. Browse menu and add items to cart
+5. Place order with delivery location
+6. Track order status in real-time
 
--- Users can create their own orders
-CREATE POLICY "Users can create orders" ON orders
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-```
+### For Canteen Staff:
+1. Visit the welcome page at `/welcome`
+2. Choose "I'm Canteen Staff"
+3. Log in with: karavanstaff@sandfordschool.edu / KaravanStaff123
+4. View incoming orders in real-time
+5. Add/edit/delete menu items
+6. Update order status (pending → preparing → ready → completed)
 
-### Step 4: Get API Keys
+## 🔧 Troubleshooting
 
-1. **Go to Project Settings → API**
-2. **Copy the following:**
-   - Project URL
-   - Anon (public) key
-   - Service role (secret) key
+### Common Issues:
 
-## 🔧 Configuration Files
+1. **"Profile creation failed" error during signup**
+   - Make sure you ran the database setup script completely
+   - Check that RLS policies are properly configured
+   - Verify Supabase connection in `.env.local`
 
-The project uses the same configuration as Lem Plant:
+2. **Menu items not loading**
+   - Ensure the sample menu items were inserted via the setup script
+   - Check browser console for any API errors
 
-- **package.json**: Dependencies and scripts
-- **tsconfig.json**: TypeScript configuration
-- **next.config.ts**: Next.js configuration
-- **postcss.config.mjs**: PostCSS with Tailwind
-- **eslint.config.mjs**: ESLint configuration
+3. **Orders not appearing**
+   - Verify the orders table exists and has proper RLS policies
+   - Check that the user is properly authenticated
 
-## 🎨 Styling & Theme
+4. **Can't access canteen dashboard**
+   - Make sure the canteen staff user was created in both auth.users and users tables
+   - Verify the credentials are exactly: karavanstaff@sandfordschool.edu / KaravanStaff123
 
-- **Primary Color**: Orange (#ff6b35)
-- **Secondary Colors**: Blue, Green, Red for status
-- **Typography**: Geist Sans & Geist Mono fonts
-- **Components**: Custom CSS classes with Tailwind utilities
-- **Animations**: CSS keyframes for smooth transitions
+## 🚀 Deployment
 
-## 🧪 Demo Credentials
+The application is ready for deployment on Vercel:
 
-For testing the application:
+1. Connect your GitHub repository to Vercel
+2. Add environment variables in Vercel dashboard
+3. Deploy automatically on push to main branch
 
-- **Admin**: admin@canteen.com / admin123
-- **Student**: student@canteen.com / student123
+## 📞 Support
 
-## 📱 Browser Support
-
-- ✅ Chrome (recommended)
-- ✅ Firefox
-- ✅ Safari
-- ✅ Edge
-- ✅ Mobile browsers
-
-## 🔄 Development Workflow
-
-1. **Make changes** to your code
-2. **Test locally** with `npm run dev`
-3. **Commit changes** to Git
-4. **Push to GitHub**
-5. **Vercel auto-deploys** from main branch
-
-## 📞 Support & Customization
-
-### Adding New Features
-- Menu items: Update `src/app/menu/page.tsx`
-- User roles: Modify `src/contexts/AuthContext.tsx`
-- Styling: Edit `src/app/globals.css`
-
-### Database Changes
-- Update Supabase schema
-- Modify TypeScript interfaces
-- Update API calls
-
-## 🚀 Production Considerations
-
-- Set up proper authentication with Supabase Auth
-- Implement real payment processing
-- Add order management dashboard for staff
-- Set up email notifications
-- Configure monitoring and analytics
-- Implement proper error handling and logging
+For technical support or questions about the system, please contact the development team.
 
 ---
 
-**Built with ❤️ using the same technology stack as Lem Plant**
+**Built with ❤️ for Sandford School**

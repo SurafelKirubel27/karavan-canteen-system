@@ -2,14 +2,20 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 import KaravanLogo from '@/components/KaravanLogo';
 
 export default function CanteenLoginPage() {
+  const { signIn } = useAuth();
+  const router = useRouter();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     rememberMe: false
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -19,13 +25,24 @@ export default function CanteenLoginPage() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Demo login for canteen staff
-    if (formData.email === 'staff@sandfordschool.edu' && formData.password === 'canteen123') {
-      window.location.href = '/canteen/dashboard';
-    } else {
-      alert('Invalid credentials. Use: staff@sandfordschool.edu / canteen123');
+    setIsLoading(true);
+    setError('');
+
+    try {
+      // Real authentication with Supabase
+      const result = await signIn(formData.email, formData.password);
+
+      if (result.success) {
+        router.push('/canteen/dashboard');
+      } else {
+        setError(result.error || 'Invalid email or password');
+      }
+    } catch (err) {
+      setError('Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -43,12 +60,12 @@ export default function CanteenLoginPage() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-lg sm:rounded-lg sm:px-10 border border-gray-200">
-          {/* Demo Credentials */}
+          {/* Canteen Staff Credentials */}
           <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 mb-6">
-            <h3 className="text-sm font-medium text-emerald-800 mb-2">Demo Credentials</h3>
+            <h3 className="text-sm font-medium text-emerald-800 mb-2">Canteen Staff Login</h3>
             <div className="text-xs text-emerald-700 space-y-1">
-              <p><strong>Email:</strong> staff@sandfordschool.edu</p>
-              <p><strong>Password:</strong> canteen123</p>
+              <p><strong>Email:</strong> karavanstaff@sandfordschool.edu</p>
+              <p><strong>Password:</strong> KaravanStaff123</p>
             </div>
           </div>
 

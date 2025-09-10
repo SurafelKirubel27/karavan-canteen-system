@@ -1,28 +1,227 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import KaravanLogo from '@/components/KaravanLogo';
 
 export default function CanteenDashboard() {
-  const [activeOrders] = useState(12);
-  const [pendingOrders] = useState(5);
-  const [todayRevenue] = useState(2450);
-  const [menuItems] = useState(48);
+  const { user, signOut } = useAuth();
+  const router = useRouter();
+  const [activeOrders, setActiveOrders] = useState(0);
+  const [pendingOrders, setPendingOrders] = useState(0);
+  const [todayRevenue, setTodayRevenue] = useState(0);
+  const [menuItems, setMenuItems] = useState(0);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [additionalStats, setAdditionalStats] = useState({
+    totalRevenue: 0,
+    weekRevenue: 0,
+    totalOrders: 0,
+    deliveredOrders: 0
+  });
 
-  const recentActivity = [
-    { id: 'KRV-2024-001', action: 'New Order', teacher: 'John Smith', time: '2 min ago', status: 'pending' },
-    { id: 'KRV-2024-002', action: 'Order Completed', teacher: 'Sarah Johnson', time: '5 min ago', status: 'completed' },
-    { id: 'KRV-2024-003', action: 'Order Accepted', teacher: 'Mike Wilson', time: '8 min ago', status: 'preparing' },
-    { id: 'KRV-2024-004', action: 'New Order', teacher: 'Emily Davis', time: '12 min ago', status: 'pending' },
-  ];
+  // Authentication check
+  useEffect(() => {
+    if (!user) {
+      router.push('/canteen/login');
+    } else if (user.role !== 'canteen' && user.role !== 'admin') {
+      router.push('/welcome');
+    }
+  }, [user, router]);
+
+  // Load dashboard data
+  useEffect(() => {
+    if (user && (user.role === 'canteen' || user.role === 'admin')) {
+      loadDashboardData();
+    }
+  }, [user]);
+
+  const loadDashboardData = async () => {
+    try {
+      // Load all orders for statistics
+      const { data: allOrders, error: allOrdersError } = await supabase
+        .from('orders')
+        .select('*');
+
+      if (allOrdersError) throw allOrdersError;
+
+      // Load recent orders with user info
+      const { data: recentOrders, error: recentOrdersError } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          users(name, email)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (recentOrdersError) throw recentOrdersError;
+
+      // Load menu items count
+      const { data: menuItemsData, error: menuError } = await supabase
+        .from('menu_items')
+        .select('id');
+
+      if (menuError) throw menuError;
+
+      // Calculate statistics
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayISO = today.toISOString();
+
+      // Active orders (pending, confirmed, preparing, ready)
+      const activeOrdersCount = allOrders?.filter(order =>
+        ['pending', 'confirmed', 'preparing', 'ready'].includes(order.status)
+      ).length || 0;
+
+      // Pending orders (pending, confirmed)
+      const pendingOrdersCount = allOrders?.filter(order =>
+        ['pending', 'confirmed'].includes(order.status)
+      ).length || 0;
+
+      // Today's revenue (delivered orders only)
+      const todayOrders = allOrders?.filter(order =>
+        order.status === 'delivered' &&
+        new Date(order.created_at) >= today
+      ) || [];
+
+      const todayRevenueAmount = todayOrders.reduce((sum, order) =>
+        sum + parseFloat(order.total_amount || 0), 0
+      );
+
+      // Total revenue (all delivered orders)
+      const totalRevenueAmount = allOrders?.filter(order =>
+        order.status === 'delivered'
+      ).reduce((sum, order) => sum + parseFloat(order.total_amount || 0), 0) || 0;
+
+      // This week's revenue
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const weekRevenueAmount = allOrders?.filter(order =>
+        order.status === 'delivered' &&
+        new Date(order.created_at) >= weekAgo
+      ).reduce((sum, order) => sum + parseFloat(order.total_amount || 0), 0) || 0;
+
+      // Update state
+      setActiveOrders(activeOrdersCount);
+      setPendingOrders(pendingOrdersCount);
+      setTodayRevenue(todayRevenueAmount);
+      setMenuItems(menuItemsData?.length || 0);
+
+      // Format recent activity
+      const activity = recentOrders?.map(order => ({
+        id: order.id,
+        type: 'order',
+        message: `New order ${order.order_number} from ${order.users?.name || 'Unknown'}`,
+        time: new Date(order.created_at).toLocaleString(),
+        status: order.status,
+        amount: order.total_amount
+      })) || [];
+
+      setRecentActivity(activity);
+
+      // Store additional stats for display
+      setAdditionalStats({
+        totalRevenue: totalRevenueAmount,
+        weekRevenue: weekRevenueAmount,
+        totalOrders: allOrders?.length || 0,
+        deliveredOrders: allOrders?.filter(order => order.status === 'delivered').length || 0
+      });
+
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getActionText = (status: string) => {
+    switch (status) {
+      case 'pending': return 'placed an order';
+      case 'confirmed': return 'order confirmed';
+      case 'preparing': return 'order being prepared';
+      case 'ready': return 'order ready';
+      case 'delivered': return 'order delivered';
+      case 'cancelled': return 'order cancelled';
+      default: return 'updated order';
+    }
+  };
+
+  const getTimeAgo = (dateString: string) => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
+    return `${Math.floor(diffInMinutes / 1440)}d ago`;
+  };
+
+
 
   const quickStats = [
-    { label: 'Active Orders', value: activeOrders, icon: '🍽️', color: 'bg-blue-500', change: '+3 from yesterday' },
-    { label: 'Pending Orders', value: pendingOrders, icon: '⏳', color: 'bg-yellow-500', change: '+2 new orders' },
-    { label: 'Today Revenue', value: `${todayRevenue} ETB`, icon: '💰', color: 'bg-emerald-500', change: '+15% from yesterday' },
-    { label: 'Menu Items', value: menuItems, icon: '📋', color: 'bg-purple-500', change: '3 items updated' },
+    {
+      label: 'Active Orders',
+      value: activeOrders,
+      icon: '🍽️',
+      color: 'bg-blue-500',
+      change: `${activeOrders} orders in progress`
+    },
+    {
+      label: 'Pending Orders',
+      value: pendingOrders,
+      icon: '⏳',
+      color: 'bg-yellow-500',
+      change: `${pendingOrders} awaiting confirmation`
+    },
+    {
+      label: 'Today\'s Revenue',
+      value: `${todayRevenue.toFixed(2)} ETB`,
+      icon: '💰',
+      color: 'bg-emerald-500',
+      change: `From ${additionalStats.deliveredOrders} delivered orders`
+    },
+    {
+      label: 'Menu Items',
+      value: menuItems,
+      icon: '📋',
+      color: 'bg-purple-500',
+      change: `${menuItems} items available`
+    },
   ];
+
+  const revenueStats = [
+    {
+      label: 'Total Revenue',
+      value: `${additionalStats.totalRevenue.toFixed(2)} ETB`,
+      icon: '💎',
+      color: 'bg-indigo-500',
+      change: `From ${additionalStats.totalOrders} total orders`
+    },
+    {
+      label: 'This Week',
+      value: `${additionalStats.weekRevenue.toFixed(2)} ETB`,
+      icon: '📈',
+      color: 'bg-green-500',
+      change: 'Last 7 days earnings'
+    }
+  ];
+
+  // Show loading state while checking authentication
+  if (!user || loading) {
+    return (
+      <div className="min-h-screen bg-orange-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-700 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-orange-50">
@@ -48,12 +247,23 @@ export default function CanteenDashboard() {
               
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
-                  <span className="text-emerald-700 font-medium text-sm">CS</span>
+                  <span className="text-emerald-700 font-medium text-sm">
+                    {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'CS'}
+                  </span>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Canteen Staff</p>
+                  <p className="text-sm font-medium text-gray-900">{user?.name || 'Canteen Staff'}</p>
                   <p className="text-xs text-gray-500">Sandford School</p>
                 </div>
+                <button
+                  onClick={() => signOut()}
+                  className="ml-4 p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Logout"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
@@ -154,6 +364,36 @@ export default function CanteenDashboard() {
                   <p className="text-xs text-emerald-600 font-medium">{stat.change}</p>
                 </div>
               ))}
+            </div>
+
+            {/* Revenue Analytics */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold text-gray-900">Revenue Analytics</h2>
+                <button
+                  onClick={loadDashboardData}
+                  className="text-emerald-600 hover:text-emerald-700 text-sm font-medium"
+                >
+                  Refresh Data
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {revenueStats.map((stat, index) => (
+                  <div key={index} className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-6">
+                    <div className="flex items-center space-x-4">
+                      <div className={`w-16 h-16 ${stat.color} rounded-xl flex items-center justify-center text-2xl`}>
+                        <span className="text-white">{stat.icon}</span>
+                      </div>
+                      <div>
+                        <h3 className="text-3xl font-bold text-gray-900">{stat.value}</h3>
+                        <p className="text-lg font-medium text-gray-700">{stat.label}</p>
+                        <p className="text-sm text-gray-500">{stat.change}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Recent Activity */}

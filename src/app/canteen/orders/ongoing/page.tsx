@@ -1,94 +1,147 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import KaravanLogo from '@/components/KaravanLogo';
 
 interface OngoingOrder {
   id: string;
-  orderNumber: string;
-  teacher: {
+  order_number: string;
+  user_id: string;
+  status: string;
+  total_amount: number;
+  service_fee: number;
+  delivery_location: string;
+  special_instructions?: string;
+  payment_method: string;
+  created_at: string;
+  updated_at: string;
+  estimated_ready_time?: string;
+  users?: {
     name: string;
-    phone: string;
-    department: string;
+    email: string;
+    phone?: string;
+    department?: string;
   };
-  items: Array<{
-    name: string;
+  order_items?: Array<{
+    id: string;
     quantity: number;
-    price: number;
-    image: string;
+    unit_price: number;
+    total_price: number;
+    item_name: string;
+    item_description?: string;
+    item_image_url?: string;
   }>;
-  total: number;
-  deliveryLocation: string;
-  specialInstructions?: string;
-  acceptedAt: string;
-  status: 'preparing' | 'ready' | 'delivering';
-  estimatedDelivery: string;
 }
 
-// Mock ongoing orders data
-const mockOngoingOrders: OngoingOrder[] = [
-  {
-    id: 'KRV-2024-004',
-    orderNumber: 'KRV-2024-004',
-    teacher: {
-      name: 'Emily Davis',
-      phone: '+251 911 567 890',
-      department: 'History'
-    },
-    items: [
-      { name: 'Pasta', quantity: 1, price: 300, image: '🍝' },
-      { name: 'Garlic Bread', quantity: 2, price: 120, image: '🍞' }
-    ],
-    total: 540,
-    deliveryLocation: 'History Department - Room 150',
-    acceptedAt: '1:45 PM',
-    status: 'preparing',
-    estimatedDelivery: '2:15 PM'
-  },
-  {
-    id: 'KRV-2024-005',
-    orderNumber: 'KRV-2024-005',
-    teacher: {
-      name: 'David Brown',
-      phone: '+251 911 678 901',
-      department: 'Physical Education'
-    },
-    items: [
-      { name: 'Grilled Chicken', quantity: 2, price: 320, image: '🍗' },
-      { name: 'Rice', quantity: 1, price: 150, image: '🍚' },
-      { name: 'Water', quantity: 3, price: 50, image: '💧' }
-    ],
-    total: 940,
-    deliveryLocation: 'Sports Complex - Gym Office',
-    specialInstructions: 'Please deliver to the main gym entrance',
-    acceptedAt: '1:30 PM',
-    status: 'ready',
-    estimatedDelivery: '2:00 PM'
-  },
-  {
-    id: 'KRV-2024-006',
-    orderNumber: 'KRV-2024-006',
-    teacher: {
-      name: 'Lisa Anderson',
-      phone: '+251 911 789 012',
-      department: 'Art'
-    },
-    items: [
-      { name: 'Sandwich', quantity: 1, price: 250, image: '🥪' },
-      { name: 'Coffee', quantity: 1, price: 80, image: '☕' }
-    ],
-    total: 330,
-    deliveryLocation: 'Art Building - Studio 2',
-    acceptedAt: '1:15 PM',
-    status: 'delivering',
-    estimatedDelivery: '1:45 PM'
-  }
-];
-
 export default function CanteenOngoingOrdersPage() {
-  const [orders, setOrders] = useState<OngoingOrder[]>(mockOngoingOrders);
+  const { user } = useAuth();
+  const router = useRouter();
+  const [orders, setOrders] = useState<OngoingOrder[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
+
+  // Authentication check
+  useEffect(() => {
+    if (!user) {
+      router.push('/canteen/login');
+    } else if (user.role !== 'canteen' && user.role !== 'admin') {
+      router.push('/welcome');
+    }
+  }, [user, router]);
+
+  // Load ongoing orders from database
+  useEffect(() => {
+    if (user && (user.role === 'canteen' || user.role === 'admin')) {
+      loadOngoingOrders();
+    }
+  }, [user]);
+
+  const loadOngoingOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          users (
+            name,
+            email,
+            phone,
+            department
+          ),
+          order_items (
+            id,
+            quantity,
+            unit_price,
+            total_price,
+            item_name,
+            item_description,
+            item_image_url
+          )
+        `)
+        .in('status', ['preparing', 'ready'])
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setOrders(data || []);
+    } catch (error) {
+      console.error('Error loading ongoing orders:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMarkReady = async (orderId: string) => {
+    setIsUpdating(orderId);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'ready' })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      // Update local state
+      setOrders(prev => prev.map(order =>
+        order.id === orderId ? { ...order, status: 'ready' } : order
+      ));
+
+      alert('Order marked as ready for delivery!');
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      alert('Failed to update order status. Please try again.');
+    } finally {
+      setIsUpdating(null);
+    }
+  };
+
+  const handleMarkDelivered = async (orderId: string) => {
+    setIsUpdating(orderId);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: 'delivered',
+          delivered_at: new Date().toISOString()
+        })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      // Remove from ongoing orders
+      setOrders(prev => prev.filter(order => order.id !== orderId));
+
+      alert('Order marked as delivered!');
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      alert('Failed to update order status. Please try again.');
+    } finally {
+      setIsUpdating(null);
+    }
+  };
 
   const getStatusInfo = (status: string) => {
     switch (status) {
@@ -119,49 +172,7 @@ export default function CanteenOngoingOrdersPage() {
     }
   };
 
-  const handleStatusUpdate = async (orderId: string, newStatus: 'preparing' | 'ready' | 'delivering') => {
-    setIsUpdating(orderId);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setOrders(prev => prev.map(order => 
-      order.id === orderId ? { ...order, status: newStatus } : order
-    ));
-    
-    setIsUpdating(null);
-  };
 
-  const handleCompleteOrder = async (orderId: string) => {
-    setIsUpdating(orderId);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Remove from ongoing orders (would move to completed orders in real app)
-    setOrders(prev => prev.filter(order => order.id !== orderId));
-    setIsUpdating(null);
-    
-    alert('Order marked as completed!');
-  };
-
-  const getNextStatus = (currentStatus: string) => {
-    switch (currentStatus) {
-      case 'preparing': return 'ready';
-      case 'ready': return 'delivering';
-      case 'delivering': return 'completed';
-      default: return 'preparing';
-    }
-  };
-
-  const getNextStatusText = (currentStatus: string) => {
-    switch (currentStatus) {
-      case 'preparing': return 'Mark Ready';
-      case 'ready': return 'Start Delivery';
-      case 'delivering': return 'Complete Order';
-      default: return 'Update Status';
-    }
-  };
 
   return (
     <div className="min-h-screen bg-orange-50">
@@ -178,7 +189,10 @@ export default function CanteenOngoingOrdersPage() {
               <Link href="/canteen/orders/incoming" className="text-gray-700 hover:text-emerald-700">Incoming Orders</Link>
               <span className="text-emerald-700 font-medium">Ongoing Orders</span>
               <button
-                onClick={() => window.location.href = '/welcome'}
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  router.push('/welcome');
+                }}
                 className="text-gray-700 hover:text-red-600 font-medium"
               >
                 Sign Out
@@ -201,8 +215,15 @@ export default function CanteenOngoingOrdersPage() {
           </div>
         </div>
 
-        {/* Orders List */}
-        {orders.length > 0 ? (
+        {/* Loading State */}
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading ongoing orders...</p>
+          </div>
+        ) : (
+          /* Orders List */
+          orders.length > 0 ? (
           <div className="space-y-6">
             {orders.map((order) => {
               const statusInfo = getStatusInfo(order.status);
@@ -213,12 +234,14 @@ export default function CanteenOngoingOrdersPage() {
                   <div className="p-6 border-b border-gray-100">
                     <div className="flex justify-between items-start mb-4">
                       <div>
-                        <h3 className="text-xl font-semibold text-gray-900">{order.orderNumber}</h3>
-                        <p className="text-sm text-gray-600">Accepted at {order.acceptedAt}</p>
+                        <h3 className="text-xl font-semibold text-gray-900">{order.order_number}</h3>
+                        <p className="text-sm text-gray-600">Created at {new Date(order.created_at).toLocaleString()}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-emerald-600">{order.total} ETB</p>
-                        <p className="text-sm text-gray-600">Est. delivery: {order.estimatedDelivery}</p>
+                        <p className="text-2xl font-bold text-emerald-600">{order.total_amount} ETB</p>
+                        {order.estimated_ready_time && (
+                          <p className="text-sm text-gray-600">Est. ready: {new Date(order.estimated_ready_time).toLocaleString()}</p>
+                        )}
                       </div>
                     </div>
 
@@ -231,23 +254,23 @@ export default function CanteenOngoingOrdersPage() {
                       
                       {/* Action Button */}
                       <div className="flex space-x-2">
-                        {order.status !== 'delivering' && (
+                        {order.status === 'preparing' && (
                           <button
-                            onClick={() => handleStatusUpdate(order.id, getNextStatus(order.status) as 'preparing' | 'ready' | 'delivering' | 'completed')}
+                            onClick={() => handleMarkReady(order.id)}
                             disabled={isUpdating === order.id}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                           >
-                            {isUpdating === order.id ? 'Updating...' : getNextStatusText(order.status)}
+                            {isUpdating === order.id ? 'Updating...' : 'Mark Ready'}
                           </button>
                         )}
-                        
-                        {order.status === 'delivering' && (
+
+                        {order.status === 'ready' && (
                           <button
-                            onClick={() => handleCompleteOrder(order.id)}
+                            onClick={() => handleMarkDelivered(order.id)}
                             disabled={isUpdating === order.id}
                             className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                           >
-                            {isUpdating === order.id ? 'Completing...' : 'Complete Order'}
+                            {isUpdating === order.id ? 'Completing...' : 'Mark Delivered'}
                           </button>
                         )}
                       </div>
@@ -259,12 +282,10 @@ export default function CanteenOngoingOrdersPage() {
                     <div>
                       <h4 className="font-medium text-gray-900 mb-3">Teacher Information</h4>
                       <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                        <p className="text-sm text-gray-900"><span className="font-medium">Name:</span> {order.teacher.name}</p>
-                        <p className="text-sm text-gray-900"><span className="font-medium">Department:</span> {order.teacher.department}</p>
-                        <p className="text-sm text-gray-900"><span className="font-medium">Phone:</span> {order.teacher.phone}</p>
-                        <button className="mt-2 text-emerald-600 hover:text-emerald-700 text-sm font-medium">
-                          📞 Call Teacher
-                        </button>
+                        <p className="text-sm text-gray-900"><span className="font-medium">Name:</span> {order.users?.name}</p>
+                        <p className="text-sm text-gray-900"><span className="font-medium">Email:</span> {order.users?.email}</p>
+                        <p className="text-sm text-gray-900"><span className="font-medium">Phone:</span> {order.users?.phone || 'N/A'}</p>
+                        <p className="text-sm text-gray-900"><span className="font-medium">Department:</span> {order.users?.department || 'N/A'}</p>
                       </div>
                     </div>
 
@@ -272,20 +293,21 @@ export default function CanteenOngoingOrdersPage() {
                     <div>
                       <h4 className="font-medium text-gray-900 mb-3">Items to Prepare</h4>
                       <div className="space-y-2">
-                        {order.items.map((item, index) => (
+                        {order.order_items?.map((item, index) => (
                           <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
                             <div className="flex items-center space-x-2">
-                              <span className="text-lg">{item.image}</span>
+                              <span className="text-lg">{item.item_image_url || '🍽️'}</span>
                               <div>
-                                <span className="text-sm font-medium text-gray-900">{item.name}</span>
+                                <span className="text-sm font-medium text-gray-900">{item.item_name}</span>
+                                <p className="text-xs text-gray-600">{item.item_description}</p>
                                 <p className="text-xs text-gray-600">Qty: {item.quantity}</p>
                               </div>
                             </div>
                             <span className="text-sm font-medium text-gray-700">
-                              {(item.price * item.quantity)} ETB
+                              {item.total_price} ETB
                             </span>
                           </div>
-                        ))}
+                        )) || []}
                       </div>
                     </div>
 
@@ -295,12 +317,15 @@ export default function CanteenOngoingOrdersPage() {
                       <div className="bg-gray-50 rounded-lg p-4 space-y-2">
                         <p className="text-sm text-gray-900">
                           <span className="font-medium">Location:</span><br />
-                          {order.deliveryLocation}
+                          {order.delivery_location}
                         </p>
-                        {order.specialInstructions && (
+                        <p className="text-sm text-gray-900">
+                          <span className="font-medium">Payment Method:</span> {order.payment_method}
+                        </p>
+                        {order.special_instructions && (
                           <p className="text-sm text-gray-900">
                             <span className="font-medium">Special Instructions:</span><br />
-                            {order.specialInstructions}
+                            {order.special_instructions}
                           </p>
                         )}
                         <button className="mt-2 text-blue-600 hover:text-blue-700 text-sm font-medium">
@@ -339,16 +364,17 @@ export default function CanteenOngoingOrdersPage() {
               );
             })}
           </div>
-        ) : (
-          /* Empty State */
-          <div className="text-center py-12">
-            <div className="text-6xl mb-4">🍽️</div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No ongoing orders</h3>
-            <p className="text-gray-600 mb-6">All orders have been completed</p>
-            <Link href="/canteen/orders/incoming" className="bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-6 rounded-lg font-medium transition-colors">
-              Check Incoming Orders
-            </Link>
-          </div>
+          ) : (
+            /* Empty State */
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">🍽️</div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">No ongoing orders</h3>
+              <p className="text-gray-600 mb-6">All orders have been completed</p>
+              <Link href="/canteen/orders/incoming" className="bg-emerald-600 hover:bg-emerald-700 text-white py-3 px-6 rounded-lg font-medium transition-colors">
+                Check Incoming Orders
+              </Link>
+            </div>
+          )
         )}
 
         {/* Quick Actions */}

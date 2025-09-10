@@ -1,11 +1,37 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import KaravanLogo from '@/components/KaravanLogo';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function WelcomePage() {
   const [selectedType, setSelectedType] = useState<'teacher' | 'canteen' | null>(null);
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      // Redirect authenticated users to their appropriate dashboard
+      if (user.role === 'teacher') {
+        router.push('/teacher/dashboard');
+      } else if (user.role === 'canteen' || user.role === 'admin') {
+        router.push('/canteen/orders/incoming');
+      }
+    }
+  }, [user, isLoading, router]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-700 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-50 flex items-center justify-center p-4">

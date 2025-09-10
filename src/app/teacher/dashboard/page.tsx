@@ -6,87 +6,82 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import KaravanLogo from '@/components/KaravanLogo';
+import { supabase, MenuItem } from '@/lib/supabase';
 
-interface MenuItem {
-  id: number;
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-  type: 'food' | 'beverage' | 'snack';
-  image: string;
-  available: boolean;
-  preparationTime: number;
-}
+// Using MenuItem interface from supabase.ts
 
-// Sample menu data organized by meal type with Ethiopian Birr prices
-const menuData = {
-  breakfast: [
-    { id: 1, name: "Pancakes", description: "Fluffy pancakes with syrup", price: 180, category: "Breakfast", type: "food" as const, image: "🥞", available: true, preparationTime: 8 },
-    { id: 2, name: "Scrambled Eggs", description: "Fresh eggs with toast", price: 150, category: "Breakfast", type: "food" as const, image: "🍳", available: true, preparationTime: 5 },
-    { id: 3, name: "Coffee", description: "Fresh brewed coffee", price: 80, category: "Breakfast", type: "beverage" as const, image: "☕", available: true, preparationTime: 2 },
-  ],
-  lunch: [
-    { id: 4, name: "Grilled Chicken", description: "Tender grilled chicken breast", price: 320, category: "Lunch", type: "food" as const, image: "🍗", available: true, preparationTime: 15 },
-    { id: 5, name: "Caesar Salad", description: "Fresh romaine with parmesan", price: 220, category: "Lunch", type: "food" as const, image: "🥗", available: true, preparationTime: 5 },
-    { id: 6, name: "Sandwich", description: "Club sandwich with fries", price: 250, category: "Lunch", type: "food" as const, image: "🥪", available: true, preparationTime: 10 },
-  ],
-  dinner: [
-    { id: 7, name: "Pasta", description: "Spaghetti with marinara sauce", price: 300, category: "Dinner", type: "food" as const, image: "🍝", available: true, preparationTime: 12 },
-    { id: 8, name: "Pizza", description: "Margherita pizza", price: 380, category: "Dinner", type: "food" as const, image: "🍕", available: true, preparationTime: 18 },
-    { id: 9, name: "Fish & Chips", description: "Crispy fish with fries", price: 350, category: "Dinner", type: "food" as const, image: "🐟", available: true, preparationTime: 15 },
-  ],
-  drinks: [
-    { id: 10, name: "Orange Juice", description: "Fresh squeezed orange juice", price: 100, category: "Drinks", type: "beverage" as const, image: "🍊", available: true, preparationTime: 2 },
-    { id: 11, name: "Iced Tea", description: "Refreshing iced tea", price: 75, category: "Drinks", type: "beverage" as const, image: "🧊", available: true, preparationTime: 2 },
-    { id: 12, name: "Smoothie", description: "Mixed berry smoothie", price: 125, category: "Drinks", type: "beverage" as const, image: "🥤", available: true, preparationTime: 3 },
-  ],
-  snacks: [
-    { id: 13, name: "Cookies", description: "Chocolate chip cookies", price: 100, category: "Snacks", type: "snack" as const, image: "🍪", available: true, preparationTime: 1 },
-    { id: 14, name: "Chips", description: "Crispy potato chips", price: 75, category: "Snacks", type: "snack" as const, image: "🥔", available: true, preparationTime: 1 },
-    { id: 15, name: "Fruit Cup", description: "Fresh mixed fruit", price: 125, category: "Snacks", type: "snack" as const, image: "🍓", available: true, preparationTime: 2 },
-  ],
-};
+// Real menu data will be loaded from Supabase
 
 export default function TeacherDashboard() {
-  const { user, logout } = useAuth();
-  const { addToCart, cartItems, getCartTotal, getCartItemCount, updateCartItemQuantity, removeFromCart } = useCart();
+  const { user, signOut } = useAuth();
+  const { addToCart, cartItems, getCartTotal, getCartItemCount, updateQuantity, removeFromCart } = useCart();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [showCart, setShowCart] = useState(false);
   const [filteredItems, setFilteredItems] = useState<MenuItem[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Combine all menu items for search
-  const allMenuItems = [
-    ...menuData.breakfast,
-    ...menuData.lunch,
-    ...menuData.dinner,
-    ...menuData.drinks,
-    ...menuData.snacks,
-  ];
+  // Authentication check
+  useEffect(() => {
+    if (!user) {
+      router.push('/teacher/login');
+    } else if (user.role !== 'teacher') {
+      router.push('/welcome');
+    }
+  }, [user, router]);
+
+  // Load menu items from Supabase
+  useEffect(() => {
+    if (user && user.role === 'teacher') {
+      loadMenuItems();
+    }
+  }, [user]);
+
+  const loadMenuItems = async () => {
+    try {
+      console.log('Loading menu items from database...');
+      const { data, error } = await supabase
+        .from('menu_items')
+        .select('*')
+        .eq('available', true)
+        .order('category', { ascending: true });
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      console.log('Loaded menu items:', data);
+      setMenuItems(data || []);
+    } catch (error) {
+      console.error('Error loading menu items:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filter items based on search term
   useEffect(() => {
     if (searchTerm.trim()) {
-      const filtered = allMenuItems.filter(item =>
+      const filtered = menuItems.filter(item =>
         item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.category.toLowerCase().includes(searchTerm.toLowerCase())
+        (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (item.category && item.category.toLowerCase().includes(searchTerm.toLowerCase()))
       );
       setFilteredItems(filtered);
     } else {
       setFilteredItems([]);
     }
-  }, [searchTerm, allMenuItems]);
+  }, [searchTerm, menuItems]);
 
   const handleAddToCart = (item: MenuItem) => {
     addToCart({
       id: item.id,
-      type: item.type,
       name: item.name,
       price: item.price,
-      category: item.category,
-      image: item.image,
+      category: item.category || 'Food',
+      image: item.image_url || '🍽️',
       description: item.description,
     });
   };
@@ -95,39 +90,55 @@ export default function TeacherDashboard() {
     if (newQuantity <= 0) {
       removeFromCart(uniqueId);
     } else {
-      updateCartItemQuantity(uniqueId, newQuantity);
+      updateQuantity(uniqueId, newQuantity);
     }
   };
 
-  const renderMenuSection = (title: string, items: MenuItem[]) => (
-    <div className="mb-8">
-      <div className="flex items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
-        <div className="flex-1 h-px bg-gray-200 ml-4"></div>
-      </div>
-      <div className="flex space-x-4 overflow-x-auto pb-4">
-        {items.map((item) => (
-          <div key={item.id} className="flex-shrink-0 w-72 bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
-            <div className="text-center mb-3">
-              <span className="text-4xl">{item.image}</span>
+  const renderMenuSection = (title: string, items: MenuItem[]) => {
+    if (items.length === 0) return null;
+
+    return (
+      <div className="mb-8">
+        <div className="flex items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+          <div className="flex-1 h-px bg-gray-200 ml-4"></div>
+        </div>
+        <div className="flex space-x-4 overflow-x-auto pb-4">
+          {items.map((item) => (
+            <div key={item.id} className="flex-shrink-0 w-72 bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
+              <div className="text-center mb-3">
+                <span className="text-4xl">{item.image_url || '🍽️'}</span>
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-1">{item.name}</h3>
+              <p className="text-sm text-gray-600 mb-2 line-clamp-2">{item.description || 'Delicious food item'}</p>
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-lg font-bold text-emerald-700">{item.price} ETB</span>
+                <span className="text-xs text-gray-500">⏱️ {item.prep_time}min</span>
+              </div>
+              <button
+                onClick={() => handleAddToCart(item)}
+                className="w-full bg-emerald-700 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-emerald-800 transition-colors"
+              >
+                Add to Basket
+              </button>
             </div>
-            <h3 className="font-semibold text-gray-900 mb-1">{item.name}</h3>
-            <p className="text-sm text-gray-600 mb-2 line-clamp-2">{item.description}</p>
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-lg font-bold text-emerald-700">{item.price} ETB</span>
-              <span className="text-xs text-gray-500">⏱️ {item.preparationTime}min</span>
-            </div>
-            <button
-              onClick={() => handleAddToCart(item)}
-              className="w-full bg-emerald-700 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-emerald-800 transition-colors"
-            >
-              Add to Basket
-            </button>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
+
+  // Show loading state while checking authentication
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-orange-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-700 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-orange-50">
@@ -186,8 +197,8 @@ export default function TeacherDashboard() {
               </Link>
 
               <button
-                onClick={() => {
-                  logout();
+                onClick={async () => {
+                  await signOut();
                   router.push('/welcome');
                 }}
                 className="text-gray-700 hover:text-red-600 font-medium"
@@ -233,13 +244,13 @@ export default function TeacherDashboard() {
                     {filteredItems.map((item) => (
                       <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
                         <div className="text-center mb-3">
-                          <span className="text-3xl">{item.image}</span>
+                          <span className="text-3xl">{item.image_url}</span>
                         </div>
                         <h3 className="font-semibold text-gray-900 mb-1">{item.name}</h3>
                         <p className="text-sm text-gray-600 mb-2">{item.description}</p>
                         <div className="flex justify-between items-center mb-3">
                           <span className="text-lg font-bold text-emerald-700">{item.price} ETB</span>
-                          <span className="text-xs text-gray-500">⏱️ {item.preparationTime}min</span>
+                          <span className="text-xs text-gray-500">⏱️ {item.prep_time}min</span>
                         </div>
                         <button
                           onClick={() => handleAddToCart(item)}
@@ -257,13 +268,70 @@ export default function TeacherDashboard() {
             )}
 
             {/* Menu Sections */}
-            {!searchTerm && (
+            {!searchTerm && !loading && (
               <div className="space-y-8">
-                {renderMenuSection('Breakfast', menuData.breakfast)}
-                {renderMenuSection('Lunch', menuData.lunch)}
-                {renderMenuSection('Dinner', menuData.dinner)}
-                {renderMenuSection('Drinks', menuData.drinks)}
-                {renderMenuSection('Snacks', menuData.snacks)}
+                {/* Debug info */}
+                {menuItems.length > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-blue-800">
+                      Loaded {menuItems.length} menu items. Categories: {[...new Set(menuItems.map(item => item.category))].join(', ')}
+                    </p>
+                  </div>
+                )}
+
+                {renderMenuSection('Breakfast', menuItems.filter(item => item.category === 'Breakfast'))}
+                {renderMenuSection('Lunch', menuItems.filter(item => item.category === 'Lunch'))}
+                {renderMenuSection('Dinner', menuItems.filter(item => item.category === 'Dinner'))}
+                {renderMenuSection('Drinks', menuItems.filter(item => item.category === 'Drinks'))}
+                {renderMenuSection('Snacks', menuItems.filter(item => item.category === 'Snacks'))}
+
+                {/* Fallback: Show all items if none match categories */}
+                {menuItems.length > 0 &&
+                 menuItems.filter(item => ['Breakfast', 'Lunch', 'Dinner', 'Drinks', 'Snacks'].includes(item.category)).length === 0 && (
+                  <div className="mb-8">
+                    <div className="flex items-center mb-6">
+                      <h2 className="text-2xl font-bold text-gray-900">All Menu Items</h2>
+                      <div className="flex-1 h-px bg-gray-200 ml-4"></div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {menuItems.map((item) => (
+                        <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
+                          <div className="text-center mb-3">
+                            <span className="text-3xl">{item.image_url}</span>
+                          </div>
+                          <h3 className="font-semibold text-gray-900 mb-1">{item.name}</h3>
+                          <p className="text-sm text-gray-600 mb-2">{item.description}</p>
+                          <div className="flex justify-between items-center mb-3">
+                            <span className="text-lg font-bold text-emerald-700">{item.price} ETB</span>
+                            <span className="text-xs text-gray-500">⏱️ {item.prep_time}min</span>
+                          </div>
+                          <button
+                            onClick={() => handleAddToCart(item)}
+                            className="w-full bg-emerald-700 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-emerald-800 transition-colors"
+                          >
+                            Add to Basket
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* No items message */}
+                {menuItems.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">🍽️</div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">No menu items available</h3>
+                    <p className="text-gray-600">Please check back later or contact the canteen staff.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Loading State */}
+            {loading && (
+              <div className="text-center py-8">
+                <div className="text-gray-600">Loading menu items...</div>
               </div>
             )}
           </div>

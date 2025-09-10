@@ -1,112 +1,110 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import KaravanLogo from '@/components/KaravanLogo';
 
 interface RecentOrder {
   id: string;
-  orderNumber: string;
-  date: string;
-  time: string;
-  status: 'completed' | 'cancelled';
-  total: number;
-  items: Array<{
-    name: string;
+  order_number: string;
+  user_id: string;
+  status: string;
+  total_amount: number;
+  service_fee: number;
+  delivery_location: string;
+  special_instructions?: string;
+  payment_method: string;
+  created_at: string;
+  updated_at: string;
+  estimated_ready_time?: string;
+  delivered_at?: string;
+  order_items?: Array<{
+    id: string;
     quantity: number;
-    price: number;
-    image: string;
+    unit_price: number;
+    total_price: number;
+    item_name: string;
+    item_description?: string;
+    item_image_url?: string;
   }>;
-  deliveryLocation: string;
 }
-
-// Mock recent orders data with Ethiopian Birr prices
-const mockRecentOrders: RecentOrder[] = [
-  {
-    id: '251027276',
-    orderNumber: 'KRV-2024-276',
-    date: 'July 02, 2025',
-    time: '7:34 pm',
-    status: 'cancelled',
-    total: 1620,
-    items: [
-      { name: 'Grilled Chicken', quantity: 2, price: 320, image: '🍗' },
-      { name: 'Caesar Salad', quantity: 1, price: 220, image: '🥗' }
-    ],
-    deliveryLocation: 'Science Lab - Room 205'
-  },
-  {
-    id: '251020913',
-    orderNumber: 'KRV-2024-913',
-    date: 'June 11, 2025',
-    time: '12:33 pm',
-    status: 'completed',
-    total: 2850,
-    items: [
-      { name: 'Pizza', quantity: 1, price: 380, image: '🍕' },
-      { name: 'Pasta', quantity: 2, price: 300, image: '🍝' },
-      { name: 'Coffee', quantity: 3, price: 80, image: '☕' }
-    ],
-    deliveryLocation: 'Main Building - Room 101'
-  },
-  {
-    id: '251016815',
-    orderNumber: 'KRV-2024-815',
-    date: 'May 28, 2025',
-    time: '12:06 pm',
-    status: 'completed',
-    total: 2850,
-    items: [
-      { name: 'Sandwich', quantity: 2, price: 250, image: '🥪' },
-      { name: 'Orange Juice', quantity: 2, price: 100, image: '🍊' }
-    ],
-    deliveryLocation: 'Library - Study Room A'
-  },
-  {
-    id: '251015700',
-    orderNumber: 'KRV-2024-700',
-    date: 'May 24, 2025',
-    time: '1:17 pm',
-    status: 'completed',
-    total: 2650,
-    items: [
-      { name: 'Fish & Chips', quantity: 1, price: 350, image: '🐟' },
-      { name: 'Iced Tea', quantity: 2, price: 75, image: '🧊' }
-    ],
-    deliveryLocation: 'Cafeteria - Staff Lounge'
-  },
-  {
-    id: '251011978',
-    orderNumber: 'KRV-2024-978',
-    date: 'May 10, 2025',
-    time: '12:54 pm',
-    status: 'completed',
-    total: 1620,
-    items: [
-      { name: 'Pancakes', quantity: 1, price: 180, image: '🥞' },
-      { name: 'Scrambled Eggs', quantity: 1, price: 150, image: '🍳' }
-    ],
-    deliveryLocation: 'Art Building - Studio 3'
-  }
-];
 
 export default function RecentOrdersPage() {
   const { user, logout } = useAuth();
-  const [orders] = useState<RecentOrder[]>(mockRecentOrders);
+  const router = useRouter();
+  const [orders, setOrders] = useState<RecentOrder[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<RecentOrder | null>(null);
+
+  // Authentication check
+  useEffect(() => {
+    if (!user) {
+      router.push('/teacher/login');
+    } else if (user.role !== 'teacher') {
+      router.push('/welcome');
+    }
+  }, [user, router]);
+
+  // Load user's order history
+  useEffect(() => {
+    if (user && user.role === 'teacher') {
+      loadRecentOrders();
+    }
+  }, [user]);
+
+  const loadRecentOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items (
+            id,
+            quantity,
+            unit_price,
+            total_price,
+            item_name,
+            item_description,
+            item_image_url
+          )
+        `)
+        .eq('user_id', user?.id)
+        .in('status', ['delivered', 'cancelled'])
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+      setOrders(data || []);
+    } catch (error) {
+      console.error('Error loading recent orders:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed': return 'text-emerald-600 bg-emerald-50 border-emerald-200';
+      case 'delivered': return 'text-emerald-600 bg-emerald-50 border-emerald-200';
       case 'cancelled': return 'text-red-600 bg-red-50 border-red-200';
       default: return 'text-gray-600 bg-gray-50 border-gray-200';
     }
   };
 
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'delivered': return 'Delivered';
+      case 'cancelled': return 'Cancelled';
+      default: return status.charAt(0).toUpperCase() + status.slice(1);
+    }
+  };
+
   const handleReorder = (order: RecentOrder) => {
-    // Add items to cart logic would go here
-    alert(`Reordering ${order.orderNumber}...`);
+    // Navigate to menu page with items pre-selected
+    router.push('/teacher/dashboard');
+    alert(`Redirecting to menu to reorder items from ${order.order_number}...`);
   };
 
   return (
@@ -137,23 +135,34 @@ export default function RecentOrdersPage() {
           <p className="text-gray-600">View your order history and reorder your favorites</p>
         </div>
 
-        {/* Orders Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {orders.map((order) => (
+        {/* Loading State */}
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading your order history...</p>
+          </div>
+        ) : orders.length > 0 ? (
+          /* Orders Grid */
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+            {orders.map((order) => (
             <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
               {/* Order Header */}
               <div className="p-6 border-b border-gray-100">
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">#{order.id}</h3>
-                    <p className="text-sm text-gray-600">{order.date} {order.time}</p>
+                    <h3 className="text-lg font-semibold text-gray-900">{order.order_number}</h3>
+                    <p className="text-sm text-gray-600">{new Date(order.created_at).toLocaleDateString()} {new Date(order.created_at).toLocaleTimeString()}</p>
+                    {order.delivered_at && (
+                      <p className="text-xs text-gray-500">Delivered: {new Date(order.delivered_at).toLocaleString()}</p>
+                    )}
                   </div>
                   <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
-                    {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                    {getStatusText(order.status)}
                   </span>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-emerald-600">{order.total} ETB</p>
+                  <p className="text-2xl font-bold text-emerald-600">{order.total_amount} ETB</p>
+                  <p className="text-xs text-gray-500">Service fee: {order.service_fee} ETB</p>
                 </div>
               </div>
 
@@ -161,27 +170,38 @@ export default function RecentOrdersPage() {
               <div className="p-6">
                 <h4 className="font-medium text-gray-900 mb-3">Items Ordered</h4>
                 <div className="space-y-2 mb-4">
-                  {order.items.slice(0, 3).map((item, index) => (
+                  {order.order_items?.slice(0, 3).map((item, index) => (
                     <div key={index} className="flex items-center space-x-3">
-                      <span className="text-lg">{item.image}</span>
+                      <span className="text-lg">{item.item_image_url || '🍽️'}</span>
                       <div className="flex-1">
-                        <span className="text-sm text-gray-900">{item.name}</span>
+                        <span className="text-sm text-gray-900">{item.item_name}</span>
                         <span className="text-xs text-gray-500 ml-2">x{item.quantity}</span>
+                        {item.item_description && (
+                          <p className="text-xs text-gray-400">{item.item_description}</p>
+                        )}
                       </div>
                       <span className="text-sm font-medium text-gray-700">
-                        {(item.price * item.quantity)} ETB
+                        {item.total_price} ETB
                       </span>
                     </div>
-                  ))}
-                  {order.items.length > 3 && (
-                    <p className="text-xs text-gray-500">+{order.items.length - 3} more items</p>
+                  )) || []}
+                  {(order.order_items?.length || 0) > 3 && (
+                    <p className="text-xs text-gray-500">+{(order.order_items?.length || 0) - 3} more items</p>
                   )}
                 </div>
 
                 <div className="mb-4">
                   <p className="text-xs text-gray-600">
-                    <span className="font-medium">Delivered to:</span> {order.deliveryLocation}
+                    <span className="font-medium">Delivered to:</span> {order.delivery_location}
                   </p>
+                  <p className="text-xs text-gray-600">
+                    <span className="font-medium">Payment:</span> {order.payment_method}
+                  </p>
+                  {order.special_instructions && (
+                    <p className="text-xs text-gray-600">
+                      <span className="font-medium">Instructions:</span> {order.special_instructions}
+                    </p>
+                  )}
                 </div>
 
                 {/* Action Buttons */}
@@ -192,7 +212,7 @@ export default function RecentOrdersPage() {
                   >
                     View Order
                   </button>
-                  {order.status === 'completed' && (
+                  {order.status === 'delivered' && (
                     <button
                       onClick={() => handleReorder(order)}
                       className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
@@ -205,9 +225,8 @@ export default function RecentOrdersPage() {
             </div>
           ))}
         </div>
-
-        {/* Empty State */}
-        {orders.length === 0 && (
+        ) : (
+          /* Empty State */
           <div className="text-center py-12">
             <div className="text-6xl mb-4">📋</div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">No recent orders</h3>

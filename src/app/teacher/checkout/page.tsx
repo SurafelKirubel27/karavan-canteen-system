@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import KaravanLogo from '@/components/KaravanLogo';
 
 export default function TeacherCheckoutPage() {
-  const { cartItems, getCartTotal, clearCart, updateCartItemQuantity, removeFromCart } = useCart();
+  const { cartItems, getCartTotal, clearCart, updateQuantity, removeFromCart, checkout } = useCart();
   const { user } = useAuth();
   const router = useRouter();
   
@@ -35,7 +35,7 @@ export default function TeacherCheckoutPage() {
     if (newQuantity <= 0) {
       removeFromCart(uniqueId);
     } else {
-      updateCartItemQuantity(uniqueId, newQuantity);
+      updateQuantity(uniqueId, newQuantity);
     }
   };
 
@@ -44,17 +44,16 @@ export default function TeacherCheckoutPage() {
     setIsProcessing(true);
 
     try {
-      // Simulate order processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Generate order ID
-      const orderId = `KRV-${Date.now()}`;
-      
-      // Clear cart
-      clearCart();
-      
-      // Redirect to success page
-      router.push(`/teacher/order-success?id=${orderId}&location=${encodeURIComponent(orderData.deliveryLocation)}`);
+      // Use real checkout function with user ID
+      const result = await checkout(orderData.deliveryLocation, orderData.specialInstructions, user?.id);
+
+      if (result.success && result.orderNumber) {
+        // Redirect to success page with real order number
+        router.push(`/teacher/order-success?id=${result.orderNumber}&location=${encodeURIComponent(orderData.deliveryLocation)}`);
+      } else {
+        console.error('Order failed:', result.error);
+        // Error notification is already shown by the checkout function
+      }
     } catch (error) {
       console.error('Order processing failed:', error);
     } finally {

@@ -1,128 +1,178 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 import KaravanLogo from '@/components/KaravanLogo';
 
 interface IncomingOrder {
   id: string;
-  orderNumber: string;
-  teacher: {
+  order_number: string;
+  user_id: string;
+  status: string;
+  total_amount: number;
+  service_fee: number;
+  delivery_location: string;
+  special_instructions?: string;
+  payment_method: string;
+  created_at: string;
+  updated_at: string;
+  estimated_ready_time?: string;
+  users?: {
     name: string;
     email: string;
-    phone: string;
-    department: string;
-    officeLocation: string;
+    phone?: string;
+    department?: string;
   };
-  items: Array<{
-    name: string;
+  order_items?: Array<{
+    id: string;
     quantity: number;
-    price: number;
-    image: string;
-    specialInstructions?: string;
+    unit_price: number;
+    total_price: number;
+    item_name: string;
+    item_description?: string;
+    item_image_url?: string;
   }>;
-  total: number;
-  deliveryLocation: string;
-  specialInstructions?: string;
-  placedAt: string;
-  estimatedPrepTime: number;
 }
 
-// Mock incoming orders data
-const mockIncomingOrders: IncomingOrder[] = [
-  {
-    id: 'KRV-2024-001',
-    orderNumber: 'KRV-2024-001',
-    teacher: {
-      name: 'John Smith',
-      email: 'john.smith@sandfordschool.edu',
-      phone: '+251 911 234 567',
-      department: 'Mathematics',
-      officeLocation: 'Main Building Room 205'
-    },
-    items: [
-      { name: 'Grilled Chicken', quantity: 1, price: 320, image: '🍗' },
-      { name: 'Caesar Salad', quantity: 1, price: 220, image: '🥗' },
-      { name: 'Coffee', quantity: 2, price: 80, image: '☕' }
-    ],
-    total: 700,
-    deliveryLocation: 'Science Lab - Room 205',
-    specialInstructions: 'Please call when you arrive at the building',
-    placedAt: '2:30 PM',
-    estimatedPrepTime: 15
-  },
-  {
-    id: 'KRV-2024-002',
-    orderNumber: 'KRV-2024-002',
-    teacher: {
-      name: 'Sarah Johnson',
-      email: 'sarah.johnson@sandfordschool.edu',
-      phone: '+251 911 345 678',
-      department: 'English',
-      officeLocation: 'Arts Building Room 102'
-    },
-    items: [
-      { name: 'Pizza', quantity: 1, price: 380, image: '🍕' },
-      { name: 'Orange Juice', quantity: 2, price: 100, image: '🍊' }
-    ],
-    total: 580,
-    deliveryLocation: 'Library - Study Room A',
-    placedAt: '2:45 PM',
-    estimatedPrepTime: 20
-  },
-  {
-    id: 'KRV-2024-003',
-    orderNumber: 'KRV-2024-003',
-    teacher: {
-      name: 'Mike Wilson',
-      email: 'mike.wilson@sandfordschool.edu',
-      phone: '+251 911 456 789',
-      department: 'Science',
-      officeLocation: 'Science Building Room 301'
-    },
-    items: [
-      { name: 'Sandwich', quantity: 2, price: 250, image: '🥪' },
-      { name: 'Iced Tea', quantity: 1, price: 75, image: '🧊' }
-    ],
-    total: 575,
-    deliveryLocation: 'Science Building - Room 301',
-    specialInstructions: 'No onions in the sandwich please',
-    placedAt: '3:00 PM',
-    estimatedPrepTime: 10
-  }
-];
-
+// Real orders will be loaded from database
 export default function IncomingOrdersPage() {
-  const [orders, setOrders] = useState<IncomingOrder[]>(mockIncomingOrders);
+  const { user } = useAuth();
+  const router = useRouter();
+  const [orders, setOrders] = useState<IncomingOrder[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedOrder, setSelectedOrder] = useState<IncomingOrder | null>(null);
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
 
-  const handleAcceptOrder = async (orderId: string) => {
-    setIsProcessing(orderId);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Remove from incoming orders (would move to ongoing orders in real app)
-    setOrders(prev => prev.filter(order => order.id !== orderId));
-    setSelectedOrder(null);
-    setIsProcessing(null);
-    
-    alert('Order accepted and moved to ongoing orders!');
+  // Authentication check
+  useEffect(() => {
+    if (!user) {
+      router.push('/canteen/login');
+    } else if (user.role !== 'canteen' && user.role !== 'admin') {
+      router.push('/welcome');
+    }
+  }, [user, router]);
+
+  // Load incoming orders from database
+  useEffect(() => {
+    loadIncomingOrders();
+  }, []);
+
+  const loadIncomingOrders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          users (
+            name,
+            email,
+            phone,
+            department
+          ),
+          order_items (
+            id,
+            quantity,
+            unit_price,
+            total_price,
+            item_name,
+            item_description,
+            item_image_url
+          )
+        `)
+        .in('status', ['pending', 'confirmed'])
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setOrders(data || []);
+    } catch (error) {
+      console.error('Error loading orders:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeclineOrder = async (orderId: string) => {
+  const handleConfirmOrder = async (orderId: string) => {
     setIsProcessing(orderId);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Remove from incoming orders
-    setOrders(prev => prev.filter(order => order.id !== orderId));
-    setSelectedOrder(null);
-    setIsProcessing(null);
-    
-    alert('Order declined and customer notified.');
+
+    try {
+      // Update order status to 'confirmed' in database
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: 'confirmed'
+        })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      // Reload orders to show updated status
+      await loadIncomingOrders();
+      setSelectedOrder(null);
+
+      alert('Order confirmed! Estimated ready time has been calculated.');
+    } catch (error) {
+      console.error('Error confirming order:', error);
+      alert('Failed to confirm order. Please try again.');
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const handleStartPreparing = async (orderId: string) => {
+    setIsProcessing(orderId);
+
+    try {
+      // Update order status to 'preparing' in database
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: 'preparing'
+        })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      // Remove from incoming orders list
+      setOrders(prev => prev.filter(order => order.id !== orderId));
+      setSelectedOrder(null);
+
+      alert('Order moved to preparing! Check ongoing orders to continue.');
+    } catch (error) {
+      console.error('Error starting preparation:', error);
+      alert('Failed to start preparation. Please try again.');
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const handleCancelOrder = async (orderId: string) => {
+    setIsProcessing(orderId);
+
+    try {
+      // Update order status to 'cancelled' in database
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: 'cancelled'
+        })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      // Remove from incoming orders list
+      setOrders(prev => prev.filter(order => order.id !== orderId));
+      setSelectedOrder(null);
+
+      alert('Order cancelled and customer notified.');
+    } catch (error) {
+      console.error('Error cancelling order:', error);
+      alert('Failed to cancel order. Please try again.');
+    } finally {
+      setIsProcessing(null);
+    }
   };
 
   return (
@@ -140,7 +190,10 @@ export default function IncomingOrdersPage() {
               <span className="text-emerald-700 font-medium">Incoming Orders</span>
               <Link href="/canteen/orders/ongoing" className="text-gray-700 hover:text-emerald-700">Ongoing Orders</Link>
               <button
-                onClick={() => window.location.href = '/welcome'}
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  router.push('/welcome');
+                }}
                 className="text-gray-700 hover:text-red-600 font-medium"
               >
                 Sign Out
@@ -163,8 +216,12 @@ export default function IncomingOrdersPage() {
           </div>
         </div>
 
-        {/* Orders Grid */}
-        {orders.length > 0 ? (
+        {/* Loading State */}
+        {loading ? (
+          <div className="text-center py-8">
+            <div className="text-gray-600">Loading incoming orders...</div>
+          </div>
+        ) : orders.length > 0 ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {orders.map((order) => (
               <div key={order.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
@@ -172,27 +229,28 @@ export default function IncomingOrdersPage() {
                 <div className="p-6 border-b border-gray-100">
                   <div className="flex justify-between items-start mb-3">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{order.orderNumber}</h3>
-                      <p className="text-sm text-gray-800">Placed at {order.placedAt}</p>
+                      <h3 className="text-lg font-semibold text-gray-900">{order.order_number}</h3>
+                      <p className="text-sm text-gray-800">Placed at {new Date(order.created_at).toLocaleTimeString()}</p>
                     </div>
                     <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2 py-1 rounded-full">
-                      Pending
+                      {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                     </span>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-emerald-600">{order.total} ETB</p>
-                    <p className="text-sm text-gray-800">Est. prep: {order.estimatedPrepTime} min</p>
+                    <p className="text-2xl font-bold text-emerald-600">{order.total_amount} ETB</p>
+                    <p className="text-sm text-gray-800">Items: {order.order_items?.length || 0}</p>
                   </div>
                 </div>
 
-                {/* Teacher Info */}
+                {/* Delivery Info */}
                 <div className="p-6 border-b border-gray-100 bg-gray-50">
-                  <h4 className="font-medium text-gray-900 mb-2">Teacher Information</h4>
+                  <h4 className="font-medium text-gray-900 mb-2">Delivery Information</h4>
                   <div className="space-y-1 text-sm">
-                    <p className="text-gray-900"><span className="font-medium">Name:</span> {order.teacher.name}</p>
-                    <p className="text-gray-900"><span className="font-medium">Department:</span> {order.teacher.department}</p>
-                    <p className="text-gray-900"><span className="font-medium">Phone:</span> {order.teacher.phone}</p>
-                    <p className="text-gray-900"><span className="font-medium">Office:</span> {order.teacher.officeLocation}</p>
+                    <p className="text-gray-900"><span className="font-medium">Location:</span> {order.delivery_location}</p>
+                    {order.special_instructions && (
+                      <p className="text-gray-900"><span className="font-medium">Instructions:</span> {order.special_instructions}</p>
+                    )}
+                    <p className="text-gray-900"><span className="font-medium">Teacher ID:</span> {order.teacher_id}</p>
                   </div>
                 </div>
 
@@ -200,18 +258,18 @@ export default function IncomingOrdersPage() {
                 <div className="p-6 border-b border-gray-100">
                   <h4 className="font-medium text-gray-900 mb-3">Items Ordered</h4>
                   <div className="space-y-2">
-                    {order.items.map((item, index) => (
+                    {order.order_items?.map((item, index) => (
                       <div key={index} className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
-                          <span className="text-lg">{item.image}</span>
-                          <span className="text-sm text-gray-900 font-medium">{item.name}</span>
+                          <span className="text-lg">{item.menu_items?.image_url || '🍽️'}</span>
+                          <span className="text-sm text-gray-900 font-medium">{item.menu_items?.name || 'Unknown Item'}</span>
                           <span className="text-xs text-gray-800">x{item.quantity}</span>
                         </div>
                         <span className="text-sm font-medium text-gray-900">
-                          {(item.price * item.quantity)} ETB
+                          {(item.price_at_time * item.quantity)} ETB
                         </span>
                       </div>
-                    ))}
+                    )) || <p className="text-sm text-gray-500">No items found</p>}
                   </div>
                 </div>
 
@@ -237,20 +295,33 @@ export default function IncomingOrdersPage() {
                     >
                       View Details
                     </button>
-                    <button
-                      onClick={() => handleDeclineOrder(order.id)}
-                      disabled={isProcessing === order.id}
-                      className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                    >
-                      {isProcessing === order.id ? 'Processing...' : 'Decline'}
-                    </button>
-                    <button
-                      onClick={() => handleAcceptOrder(order.id)}
-                      disabled={isProcessing === order.id}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                    >
-                      {isProcessing === order.id ? 'Processing...' : 'Accept'}
-                    </button>
+                    {order.status === 'pending' && (
+                      <>
+                        <button
+                          onClick={() => handleCancelOrder(order.id)}
+                          disabled={isProcessing === order.id}
+                          className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                        >
+                          {isProcessing === order.id ? 'Processing...' : 'Cancel'}
+                        </button>
+                        <button
+                          onClick={() => handleConfirmOrder(order.id)}
+                          disabled={isProcessing === order.id}
+                          className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                        >
+                          {isProcessing === order.id ? 'Processing...' : 'Confirm'}
+                        </button>
+                      </>
+                    )}
+                    {order.status === 'confirmed' && (
+                      <button
+                        onClick={() => handleStartPreparing(order.id)}
+                        disabled={isProcessing === order.id}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                      >
+                        {isProcessing === order.id ? 'Processing...' : 'Start Preparing'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -293,10 +364,14 @@ export default function IncomingOrdersPage() {
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-2">Order Information</h3>
                     <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                      <p><span className="font-medium">Order ID:</span> {selectedOrder.orderNumber}</p>
-                      <p><span className="font-medium">Placed at:</span> {selectedOrder.placedAt}</p>
-                      <p><span className="font-medium">Estimated prep time:</span> {selectedOrder.estimatedPrepTime} minutes</p>
-                      <p><span className="font-medium">Total amount:</span> {selectedOrder.total} ETB</p>
+                      <p><span className="font-medium">Order Number:</span> {selectedOrder.order_number}</p>
+                      <p><span className="font-medium">Status:</span> <span className="capitalize">{selectedOrder.status}</span></p>
+                      <p><span className="font-medium">Placed at:</span> {new Date(selectedOrder.created_at).toLocaleString()}</p>
+                      {selectedOrder.estimated_ready_time && (
+                        <p><span className="font-medium">Estimated ready time:</span> {new Date(selectedOrder.estimated_ready_time).toLocaleString()}</p>
+                      )}
+                      <p><span className="font-medium">Total amount:</span> {selectedOrder.total_amount} ETB</p>
+                      <p><span className="font-medium">Service fee:</span> {selectedOrder.service_fee} ETB</p>
                     </div>
                   </div>
 
@@ -304,11 +379,10 @@ export default function IncomingOrdersPage() {
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-2">Teacher Details</h3>
                     <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                      <p className="text-gray-900"><span className="font-medium">Name:</span> {selectedOrder.teacher.name}</p>
-                      <p className="text-gray-900"><span className="font-medium">Email:</span> {selectedOrder.teacher.email}</p>
-                      <p className="text-gray-900"><span className="font-medium">Phone:</span> {selectedOrder.teacher.phone}</p>
-                      <p className="text-gray-900"><span className="font-medium">Department:</span> {selectedOrder.teacher.department}</p>
-                      <p className="text-gray-900"><span className="font-medium">Office:</span> {selectedOrder.teacher.officeLocation}</p>
+                      <p className="text-gray-900"><span className="font-medium">Name:</span> {selectedOrder.users?.name}</p>
+                      <p className="text-gray-900"><span className="font-medium">Email:</span> {selectedOrder.users?.email}</p>
+                      <p className="text-gray-900"><span className="font-medium">Phone:</span> {selectedOrder.users?.phone}</p>
+                      <p className="text-gray-900"><span className="font-medium">Department:</span> {selectedOrder.users?.department}</p>
                     </div>
                   </div>
 
@@ -316,20 +390,21 @@ export default function IncomingOrdersPage() {
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-2">Items Ordered</h3>
                     <div className="space-y-3">
-                      {selectedOrder.items.map((item, index) => (
+                      {selectedOrder.order_items?.map((item, index) => (
                         <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                           <div className="flex items-center space-x-3">
-                            <span className="text-xl">{item.image}</span>
+                            <span className="text-xl">{item.item_image_url || '🍽️'}</span>
                             <div>
-                              <h4 className="font-medium text-gray-900">{item.name}</h4>
+                              <h4 className="font-medium text-gray-900">{item.item_name}</h4>
+                              <p className="text-sm text-gray-600">{item.item_description}</p>
                               <p className="text-sm text-gray-600">Quantity: {item.quantity}</p>
                             </div>
                           </div>
                           <span className="font-semibold text-gray-900">
-                            {(item.price * item.quantity)} ETB
+                            {item.total_price} ETB
                           </span>
                         </div>
-                      ))}
+                      )) || []}
                     </div>
                   </div>
 
@@ -337,9 +412,10 @@ export default function IncomingOrdersPage() {
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-2">Delivery Information</h3>
                     <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                      <p className="text-gray-900"><span className="font-medium">Location:</span> {selectedOrder.deliveryLocation}</p>
-                      {selectedOrder.specialInstructions && (
-                        <p className="text-gray-900"><span className="font-medium">Special Instructions:</span> {selectedOrder.specialInstructions}</p>
+                      <p className="text-gray-900"><span className="font-medium">Location:</span> {selectedOrder.delivery_location}</p>
+                      <p className="text-gray-900"><span className="font-medium">Payment Method:</span> {selectedOrder.payment_method}</p>
+                      {selectedOrder.special_instructions && (
+                        <p className="text-gray-900"><span className="font-medium">Special Instructions:</span> {selectedOrder.special_instructions}</p>
                       )}
                     </div>
                   </div>

@@ -1,10 +1,11 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/lib/supabase';
 
 export interface CartItem {
-  id: number;
-  type: 'food' | 'beverage' | 'snack';
+  id: string; // Changed to string to match database UUID
+  type?: 'food' | 'beverage' | 'snack';
   name: string;
   price: number;
   quantity: number;
@@ -25,6 +26,7 @@ interface CartContextType {
   getCartItemCount: () => number;
   showNotification: (message: string, type?: 'success' | 'error' | 'info') => void;
   notification: { message: string; type: 'success' | 'error' | 'info' } | null;
+  checkout: (deliveryLocation: string, specialInstructions?: string, userId?: string) => Promise<{ success: boolean; orderNumber?: string; error?: string }>;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -122,6 +124,89 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     return cartItems.reduce((count, item) => count + item.quantity, 0);
   };
 
+  const checkout = async (deliveryLocation: string, specialInstructions?: string, userId?: string) => {
+    try {
+      // Check authentication - try both Supabase auth and passed userId
+      let currentUserId = userId;
+
+      if (!currentUserId) {
+        // Fallback to Supabase auth
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (authUser) {
+          // Get user profile from database
+          const { data: userProfile } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', authUser.email)
+            .single();
+
+          if (userProfile) {
+            currentUserId = userProfile.id;
+          }
+        }
+      }
+
+      if (!currentUserId) {
+        showNotification('Please log in to place an order', 'error');
+        return { success: false, error: 'User not authenticated' };
+      }
+
+      console.log('Checkout with user ID:', currentUserId);
+
+      // Generate order number using database function
+      const { data: orderNumber, error: orderNumberError } = await supabase
+        .rpc('generate_order_number');
+
+      if (orderNumberError) throw orderNumberError;
+
+      // Create the order
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          order_number: orderNumber,
+          user_id: currentUserId,
+          status: 'pending',
+          total_amount: getCartTotal(),
+          service_fee: 25.00,
+          delivery_location: deliveryLocation,
+          special_instructions: specialInstructions,
+          payment_method: 'cash'
+        })
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Create order items
+      const orderItems = cartItems.map(item => ({
+        order_id: order.id,
+        menu_item_id: item.id,
+        quantity: item.quantity,
+        unit_price: item.price,
+        total_price: item.price * item.quantity,
+        item_name: item.name,
+        item_description: item.description || '',
+        item_image_url: item.image || '🍽️'
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(orderItems);
+
+      if (itemsError) throw itemsError;
+
+      // Clear cart and show success
+      clearCart();
+      showNotification(`Order ${orderNumber} placed successfully!`, 'success');
+
+      return { success: true, orderNumber };
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      showNotification('Failed to place order. Please try again.', 'error');
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  };
+
   const value: CartContextType = {
     cartItems,
     addToCart,
@@ -132,6 +217,7 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     getCartItemCount,
     showNotification,
     notification,
+    checkout,
   };
 
   return (

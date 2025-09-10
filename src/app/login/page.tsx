@@ -11,19 +11,39 @@ export default function LoginPage() {
     password: '',
   });
   const [error, setError] = useState('');
-  const { login, isLoading } = useAuth();
+  const { login, isLoading, user } = useAuth();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    const result = await login(formData.email, formData.password);
-    
-    if (result.success) {
-      router.push('/menu');
-    } else {
-      setError(result.error || 'Login failed');
+    console.log('Login attempt:', formData.email);
+
+    try {
+      const result = await login(formData.email, formData.password);
+
+      console.log('Login result:', result);
+
+      if (result.success) {
+        console.log('Login successful, redirecting...');
+        // Wait a moment for user state to update, then redirect based on role
+        setTimeout(() => {
+          if (formData.email === 'karavanstaff@sandfordschool.edu') {
+            console.log('Redirecting to canteen dashboard');
+            router.push('/canteen/dashboard');
+          } else {
+            console.log('Redirecting to menu');
+            router.push('/menu');
+          }
+        }, 500);
+      } else {
+        console.error('Login failed:', result.error);
+        setError(result.error || 'Login failed');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('An unexpected error occurred during login');
     }
   };
 
@@ -144,6 +164,25 @@ export default function LoginPage() {
               </button>
             </div>
           </form>
+
+          {/* Quick Test Section */}
+          <div className="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+            <h3 className="text-sm font-medium text-emerald-900 mb-2">Quick Test - Canteen Staff Login</h3>
+            <button
+              onClick={() => {
+                setFormData({
+                  email: 'karavanstaff@sandfordschool.edu',
+                  password: 'KaravanStaff123'
+                });
+              }}
+              className="text-sm bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded font-medium transition-colors"
+            >
+              Fill Canteen Staff Credentials
+            </button>
+            <p className="text-xs text-emerald-700 mt-2">
+              Click to auto-fill the canteen staff login credentials for testing
+            </p>
+          </div>
 
           <div className="mt-6">
             <div className="relative">

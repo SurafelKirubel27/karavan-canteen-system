@@ -4,123 +4,53 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 interface MenuItem {
-  id: number;
+  id: string;
   name: string;
   description: string;
   price: number;
   category: string;
-  type: 'food' | 'beverage' | 'snack';
-  image: string;
+  image_url: string;
   available: boolean;
-  preparationTime: number; // in minutes
-  ingredients?: string[];
-  allergens?: string[];
-  nutritionalInfo?: {
-    calories: number;
-    protein: number;
-    carbs: number;
-    fat: number;
-  };
+  prep_time: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
-// Mock menu data - in a real app, this would come from an API
-const menuItems: MenuItem[] = [
-  {
-    id: 1,
-    name: "Grilled Chicken Sandwich",
-    description: "Tender grilled chicken breast with fresh lettuce, tomatoes, and mayo on whole grain bread",
-    price: 8.99,
-    category: "Main Course",
-    type: "food",
-    image: "🥪",
-    available: true,
-    preparationTime: 10,
-    ingredients: ["Chicken breast", "Whole grain bread", "Lettuce", "Tomatoes", "Mayo"],
-    allergens: ["Gluten", "Eggs"],
-    nutritionalInfo: { calories: 420, protein: 35, carbs: 28, fat: 18 }
-  },
-  {
-    id: 2,
-    name: "Caesar Salad",
-    description: "Fresh romaine lettuce with parmesan cheese, croutons, and caesar dressing",
-    price: 6.99,
-    category: "Salads",
-    type: "food",
-    image: "🥗",
-    available: true,
-    preparationTime: 5,
-    ingredients: ["Romaine lettuce", "Parmesan cheese", "Croutons", "Caesar dressing"],
-    allergens: ["Dairy", "Gluten"],
-    nutritionalInfo: { calories: 280, protein: 12, carbs: 15, fat: 22 }
-  },
-  {
-    id: 3,
-    name: "Fresh Orange Juice",
-    description: "Freshly squeezed orange juice, 100% natural with no added sugar",
-    price: 3.99,
-    category: "Beverages",
-    type: "beverage",
-    image: "🍊",
-    available: true,
-    preparationTime: 2,
-    ingredients: ["Fresh oranges"],
-    allergens: [],
-    nutritionalInfo: { calories: 110, protein: 2, carbs: 26, fat: 0 }
-  },
-  {
-    id: 4,
-    name: "Margherita Pizza",
-    description: "Classic pizza with fresh mozzarella, tomato sauce, and basil",
-    price: 12.99,
-    category: "Main Course",
-    type: "food",
-    image: "🍕",
-    available: true,
-    preparationTime: 15,
-    ingredients: ["Pizza dough", "Mozzarella", "Tomato sauce", "Fresh basil"],
-    allergens: ["Gluten", "Dairy"],
-    nutritionalInfo: { calories: 520, protein: 22, carbs: 58, fat: 24 }
-  },
-  {
-    id: 5,
-    name: "Chocolate Chip Cookies",
-    description: "Warm, freshly baked chocolate chip cookies (pack of 3)",
-    price: 4.99,
-    category: "Desserts",
-    type: "snack",
-    image: "🍪",
-    available: true,
-    preparationTime: 3,
-    ingredients: ["Flour", "Chocolate chips", "Butter", "Sugar", "Eggs"],
-    allergens: ["Gluten", "Dairy", "Eggs"],
-    nutritionalInfo: { calories: 380, protein: 5, carbs: 48, fat: 19 }
-  },
-  {
-    id: 6,
-    name: "Iced Coffee",
-    description: "Cold brew coffee served over ice with optional milk and sugar",
-    price: 2.99,
-    category: "Beverages",
-    type: "beverage",
-    image: "☕",
-    available: true,
-    preparationTime: 3,
-    ingredients: ["Coffee beans", "Ice", "Milk (optional)", "Sugar (optional)"],
-    allergens: ["Dairy (if milk added)"],
-    nutritionalInfo: { calories: 50, protein: 1, carbs: 8, fat: 2 }
-  }
-];
-
-const categories = ["All", "Main Course", "Salads", "Beverages", "Desserts", "Snacks"];
+const categories = ["All", "Breakfast", "Lunch", "Dinner", "Drinks", "Snacks"];
 
 export default function MenuPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredItems, setFilteredItems] = useState(menuItems);
+  const [filteredItems, setFilteredItems] = useState<MenuItem[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const { addToCart } = useCart();
   const { isAuthenticated } = useAuth();
+
+  // Load menu items from database
+  useEffect(() => {
+    loadMenuItems();
+  }, []);
+
+  const loadMenuItems = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('menu_items')
+        .select('*')
+        .eq('available', true)
+        .order('category', { ascending: true });
+
+      if (error) throw error;
+      setMenuItems(data || []);
+    } catch (error) {
+      console.error('Error loading menu items:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     let filtered = menuItems;
@@ -140,19 +70,30 @@ export default function MenuPage() {
     }
 
     setFilteredItems(filtered);
-  }, [selectedCategory, searchTerm]);
+  }, [selectedCategory, searchTerm, menuItems]);
 
   const handleAddToCart = (item: MenuItem) => {
     addToCart({
       id: item.id,
-      type: item.type,
       name: item.name,
       price: item.price,
       category: item.category,
-      image: item.image,
+      image: item.image_url,
       description: item.description,
     });
   };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#ff6b35] mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading menu...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -212,7 +153,7 @@ export default function MenuPage() {
               <div key={item.id} className="menu-card animate-fade-in-up">
                 {/* Item Image */}
                 <div className="h-48 bg-gradient-to-br from-orange-100 to-orange-200 flex items-center justify-center">
-                  <span className="text-6xl">{item.image}</span>
+                  <span className="text-6xl">{item.image_url}</span>
                 </div>
 
                 {/* Item Details */}
@@ -227,23 +168,13 @@ export default function MenuPage() {
                   <p className="text-gray-600 text-sm mb-3 line-clamp-2">{item.description}</p>
 
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-2xl font-bold text-[#ff6b35]">${item.price.toFixed(2)}</span>
-                    <span className="text-sm text-gray-500">⏱️ {item.preparationTime} min</span>
+                    <span className="text-2xl font-bold text-[#ff6b35]">{item.price} ETB</span>
+                    <span className="text-sm text-gray-500">⏱️ {item.prep_time} min</span>
                   </div>
 
-                  {/* Nutritional Info */}
-                  {item.nutritionalInfo && (
-                    <div className="text-xs text-gray-500 mb-4">
-                      {item.nutritionalInfo.calories} cal • {item.nutritionalInfo.protein}g protein
-                    </div>
-                  )}
-
-                  {/* Allergens */}
-                  {item.allergens && item.allergens.length > 0 && (
-                    <div className="text-xs text-red-600 mb-4">
-                      ⚠️ Contains: {item.allergens.join(', ')}
-                    </div>
-                  )}
+                  <div className="text-xs text-gray-500 mb-4">
+                    Category: {item.category}
+                  </div>
 
                   {/* Add to Cart Button */}
                   <button

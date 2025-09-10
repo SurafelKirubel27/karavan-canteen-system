@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import KaravanLogo from '@/components/KaravanLogo';
 
 export default function TeacherSignupPage() {
-  const { login } = useAuth();
+  const { signUp } = useAuth();
   const router = useRouter();
   const [formData, setFormData] = useState({
     firstName: '',
@@ -48,34 +48,29 @@ export default function TeacherSignupPage() {
       return;
     }
 
-    if (!formData.email.includes('@') || !formData.email.includes('.')) {
-      setError('Please enter a valid school email address');
+    if (!formData.email.includes('@')) {
+      setError('Please enter a valid email address');
       setIsLoading(false);
       return;
     }
 
     try {
-      // Simulate account creation
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Create user object
-      const newUser = {
-        id: Date.now().toString(),
+      // Create user with real authentication
+      const result = await signUp(formData.email, formData.password, {
         name: `${formData.firstName} ${formData.lastName}`,
-        email: formData.email,
-        role: 'teacher' as const,
+        role: 'teacher',
         department: formData.department,
         phone: formData.phone,
-        officeLocation: formData.officeLocation,
-        preferredDeliveryLocation: formData.officeLocation
-      };
+      });
 
-      // Auto-login the user
-      await login(newUser);
-      
-      // Redirect to dashboard
-      router.push('/teacher/dashboard');
-    } catch {
+      if (result.success) {
+        // Redirect to login page with success message
+        router.push('/teacher/login?message=Account created successfully! You can now sign in.');
+      } else {
+        setError(result.error || 'Account creation failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
       setError('Account creation failed. Please try again.');
     } finally {
       setIsLoading(false);

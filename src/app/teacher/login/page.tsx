@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import KaravanLogo from '@/components/KaravanLogo';
 
 export default function TeacherLoginPage() {
-  const { login } = useAuth();
+  const { signIn } = useAuth();
   const router = useRouter();
   const [formData, setFormData] = useState({
     email: '',
@@ -31,20 +31,13 @@ export default function TeacherLoginPage() {
     setError('');
 
     try {
-      // Demo login - replace with actual authentication
-      if (formData.email === 'teacher@school.edu' && formData.password === 'teacher123') {
-        await login({
-          id: '1',
-          name: 'John Smith',
-          email: 'teacher@school.edu',
-          role: 'teacher',
-          department: 'Mathematics',
-          phone: '+251 911 234 567',
-          officeLocation: 'Main Building Room 205'
-        });
+      // Real authentication with Supabase
+      const result = await signIn(formData.email, formData.password);
+
+      if (result.success) {
         router.push('/teacher/dashboard');
       } else {
-        setError('Invalid email or password');
+        setError(result.error || 'Invalid email or password');
       }
     } catch (err) {
       setError('Login failed. Please try again.');
@@ -171,13 +164,12 @@ export default function TeacherLoginPage() {
             </div>
           </div>
 
-          {/* Demo Credentials */}
-          <div className="mt-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
-            <h3 className="text-sm font-medium text-emerald-800 mb-2">Demo Credentials</h3>
-            <div className="text-xs text-emerald-700 space-y-1">
-              <p><strong>Email:</strong> teacher@school.edu</p>
-              <p><strong>Password:</strong> teacher123</p>
-            </div>
+          {/* Information */}
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="text-sm font-medium text-blue-800 mb-2">New to Karavan?</h3>
+            <p className="text-xs text-blue-700">
+              Create your teacher account using your school email address to start ordering food from the canteen.
+            </p>
           </div>
         </div>
 
