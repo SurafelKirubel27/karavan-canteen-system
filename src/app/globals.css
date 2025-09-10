@@ -408,17 +408,45 @@ html {
   color: #991b1b;
 }
 
+/* Accessibility improvements */
+.text-xs {
+  font-weight: 500; /* Make small text slightly bolder for better readability */
+}
+
+.text-sm {
+  font-weight: 400; /* Ensure small text has adequate weight */
+}
+
+/* Improved contrast for light text */
+.text-gray-500 {
+  color: #6b7280 !important; /* Ensure consistent gray-500 color */
+}
+
+.text-gray-600 {
+  color: #4b5563 !important; /* Darker gray for better contrast */
+}
+
+.text-gray-700 {
+  color: #374151 !important; /* Even darker for accessibility */
+}
+
 /* Responsive utilities */
 @media (max-width: 768px) {
   .card-body {
     padding: 1rem;
   }
-  
+
   .btn-primary,
   .btn-secondary,
   .btn-success,
   .btn-danger {
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
+  }
+
+  /* Improve text readability on mobile */
+  .text-xs {
+    font-size: 0.8rem; /* Slightly larger on mobile */
+    font-weight: 600; /* Bolder on mobile */
   }
 }

@@ -303,7 +303,7 @@ export default function TeacherDashboard() {
                           <p className="text-sm text-gray-600 mb-2">{item.description}</p>
                           <div className="flex justify-between items-center mb-3">
                             <span className="text-lg font-bold text-emerald-700">{item.price} ETB</span>
-                            <span className="text-xs text-gray-500">⏱️ {item.prep_time}min</span>
+                            <span className="text-xs text-gray-700">⏱️ {item.prep_time}min</span>
                           </div>
                           <button
                             onClick={() => handleAddToCart(item)}

@@ -169,10 +169,10 @@ export default function MenuPage() {
 
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-2xl font-bold text-[#ff6b35]">{item.price} ETB</span>
-                    <span className="text-sm text-gray-500">⏱️ {item.prep_time} min</span>
+                    <span className="text-sm text-gray-700">⏱️ {item.prep_time} min</span>
                   </div>
 
-                  <div className="text-xs text-gray-500 mb-4">
+                  <div className="text-xs text-gray-700 mb-4">
                     Category: {item.category}
                   </div>
 

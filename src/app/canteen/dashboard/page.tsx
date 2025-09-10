@@ -361,7 +361,7 @@ export default function CanteenDashboard() {
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</h3>
                   <p className="text-sm text-gray-600 mb-2">{stat.label}</p>
-                  <p className="text-xs text-emerald-600 font-medium">{stat.change}</p>
+                  <p className="text-xs text-emerald-700 font-medium">{stat.change}</p>
                 </div>
               ))}
             </div>

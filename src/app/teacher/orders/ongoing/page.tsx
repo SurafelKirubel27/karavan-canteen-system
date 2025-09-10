@@ -228,7 +228,7 @@ export default function OngoingOrdersPage() {
 
                     {/* Progress Bar */}
                     <div className="mb-4">
-                      <div className="flex justify-between text-xs text-gray-600 mb-1">
+                      <div className="flex justify-between text-xs text-gray-700 mb-1">
                         <span>Order Progress</span>
                         <span>{progress}%</span>
                       </div>

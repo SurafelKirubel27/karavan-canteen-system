@@ -179,7 +179,7 @@ export default function LoginPage() {
             >
               Fill Canteen Staff Credentials
             </button>
-            <p className="text-xs text-emerald-700 mt-2">
+            <p className="text-xs text-emerald-800 mt-2">
               Click to auto-fill the canteen staff login credentials for testing
             </p>
           </div>

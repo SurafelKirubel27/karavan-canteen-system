@@ -153,7 +153,7 @@ export default function RecentOrdersPage() {
                     <h3 className="text-lg font-semibold text-gray-900">{order.order_number}</h3>
                     <p className="text-sm text-gray-600">{new Date(order.created_at).toLocaleDateString()} {new Date(order.created_at).toLocaleTimeString()}</p>
                     {order.delivered_at && (
-                      <p className="text-xs text-gray-500">Delivered: {new Date(order.delivered_at).toLocaleString()}</p>
+                      <p className="text-xs text-gray-700">Delivered: {new Date(order.delivered_at).toLocaleString()}</p>
                     )}
                   </div>
                   <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
@@ -162,7 +162,7 @@ export default function RecentOrdersPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-bold text-emerald-600">{order.total_amount} ETB</p>
-                  <p className="text-xs text-gray-500">Service fee: {order.service_fee} ETB</p>
+                  <p className="text-xs text-gray-700">Service fee: {order.service_fee} ETB</p>
                 </div>
               </div>
 
