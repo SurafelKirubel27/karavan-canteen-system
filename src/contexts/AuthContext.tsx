@@ -318,20 +318,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { success: false, error: 'No user logged in' };
       }
 
-      const { error } = await supabase
+      console.log('Updating profile for user:', user.id, userData);
+
+      // Add timeout to prevent hanging
+      const updatePromise = supabase
         .from('users')
         .update(userData)
-        .eq('id', user.id);
+        .eq('id', user.id)
+        .select()
+        .single();
+
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Update timeout')), 10000)
+      );
+
+      const { data, error } = await Promise.race([updatePromise, timeoutPromise]) as any;
 
       if (error) {
+        console.error('Profile update error:', error);
         return { success: false, error: error.message };
       }
 
-      // Update local user state
+      console.log('Profile updated successfully:', data);
+
+      // Update local user state immediately
       setUser(prev => prev ? { ...prev, ...userData } : null);
       return { success: true };
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      console.error('Profile update exception:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Update failed' };
     }
   };
 

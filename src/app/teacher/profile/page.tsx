@@ -47,10 +47,13 @@ export default function TeacherProfilePage() {
 
   const handleSaveProfile = async () => {
     setIsSaving(true);
+
     try {
       if (!updateProfile) {
         throw new Error('Update function not available');
       }
+
+      console.log('Starting profile update...');
 
       const result = await updateProfile({
         name: profileData.name,
@@ -59,14 +62,35 @@ export default function TeacherProfilePage() {
       });
 
       if (result.success) {
+        console.log('Profile update successful');
         setIsEditing(false);
-        alert('Profile updated successfully!');
+
+        // Use a more modern notification instead of alert
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+        notification.textContent = '✅ Profile updated successfully!';
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+          document.body.removeChild(notification);
+        }, 3000);
       } else {
         throw new Error(result.error || 'Update failed');
       }
     } catch (error) {
       console.error('Profile update error:', error);
-      alert(`Failed to update profile: ${error instanceof Error ? error.message : 'Please try again.'}`);
+
+      // Use a more modern error notification
+      const notification = document.createElement('div');
+      notification.className = 'fixed top-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      notification.textContent = `❌ Failed to update profile: ${error instanceof Error ? error.message : 'Please try again.'}`;
+      document.body.appendChild(notification);
+
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification);
+        }
+      }, 5000);
     } finally {
       setIsSaving(false);
     }
@@ -210,9 +234,16 @@ export default function TeacherProfilePage() {
                       <button
                         onClick={handleSaveProfile}
                         disabled={isSaving}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                       >
-                        {isSaving ? 'Saving...' : 'Save Changes'}
+                        {isSaving ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>Saving...</span>
+                          </>
+                        ) : (
+                          'Save Changes'
+                        )}
                       </button>
                     </div>
                   )}
