@@ -105,17 +105,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       console.log('Starting signup process for:', email);
 
-      // Sign up with Supabase Auth with email confirmation disabled
+      // Sign up with Supabase Auth (email confirmation disabled in dashboard)
       const { data, error } = await supabase.auth.signUp({
         email,
-        password,
-        options: {
-          emailRedirectTo: undefined,
-          data: {
-            email_confirmed: true,
-            skip_confirmation: true
-          }
-        }
+        password
       });
 
       if (error) {
@@ -125,10 +118,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (data.user) {
         console.log('Auth user created successfully:', data.user.id);
-        console.log('User email confirmed status:', data.user.email_confirmed_at);
 
         // Wait a moment for the user to be fully created
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         // Create user profile in our users table with retry logic
         console.log('Creating user profile...');
@@ -232,10 +224,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (error) {
         console.error('Auth error:', error);
 
-        // Handle email not confirmed errors gracefully
+        // Handle email not confirmed errors (should not occur with disabled confirmation)
         if (error.message.includes('email not confirmed') || error.message.includes('Email not confirmed')) {
-          console.log('Email not confirmed error detected, providing user-friendly message...');
-          return { success: false, error: 'Your account needs verification. Please contact support or try creating a new account.' };
+          console.log('Unexpected email confirmation error - this should not happen');
+          return { success: false, error: 'Authentication error. Please try again or contact support.' };
         }
 
         // Handle invalid credentials
