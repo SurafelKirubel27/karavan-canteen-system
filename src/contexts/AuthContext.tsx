@@ -137,7 +137,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               name: userData.name,
               role: userData.role,
               department: userData.department || 'General',
-              phone: userData.phone || '+251 911 000 000'
+              phone: userData.phone || '+251 911 000 000',
+              email_verified: true
             });
 
           if (!error) {

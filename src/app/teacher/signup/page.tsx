@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import KaravanLogo from '@/components/KaravanLogo';
+import EmailVerificationModal from '@/components/EmailVerificationModal';
 
 export default function TeacherSignupPage() {
   const { signUp } = useAuth();
@@ -21,6 +22,8 @@ export default function TeacherSignupPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [pendingUserData, setPendingUserData] = useState<any>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -55,19 +58,34 @@ export default function TeacherSignupPage() {
     }
 
     try {
-      // Create user with real authentication
-      const result = await signUp(formData.email, formData.password, {
+      // Store user data for after email verification
+      const userData = {
+        email: formData.email,
+        password: formData.password,
         name: `${formData.firstName} ${formData.lastName}`,
         role: 'teacher',
         department: formData.department,
         phone: formData.phone,
+      };
+
+      setPendingUserData(userData);
+
+      // Send verification email
+      const emailResponse = await fetch('/api/auth/send-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          userName: `${formData.firstName} ${formData.lastName}`
+        })
       });
 
-      if (result.success) {
-        // Redirect to login page with success message
-        router.push('/teacher/login?message=Account created successfully! You can now sign in.');
+      const emailData = await emailResponse.json();
+
+      if (emailData.success) {
+        setShowVerificationModal(true);
       } else {
-        setError(result.error || 'Account creation failed. Please try again.');
+        setError(emailData.error || 'Failed to send verification email. Please try again.');
       }
     } catch (error) {
       console.error('Signup error:', error);
@@ -75,6 +93,40 @@ export default function TeacherSignupPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleVerificationSuccess = async () => {
+    if (!pendingUserData) return;
+
+    setIsLoading(true);
+    try {
+      // Now create the user account after email verification
+      const result = await signUp(pendingUserData.email, pendingUserData.password, {
+        name: pendingUserData.name,
+        role: pendingUserData.role,
+        department: pendingUserData.department,
+        phone: pendingUserData.phone,
+      });
+
+      if (result.success) {
+        setShowVerificationModal(false);
+        router.push('/teacher/login?message=Account created and verified successfully! You can now sign in.');
+      } else {
+        setError(result.error || 'Account creation failed. Please try again.');
+        setShowVerificationModal(false);
+      }
+    } catch (error) {
+      console.error('Account creation error:', error);
+      setError('Account creation failed. Please try again.');
+      setShowVerificationModal(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowVerificationModal(false);
+    setPendingUserData(null);
   };
 
   return (
@@ -290,6 +342,15 @@ export default function TeacherSignupPage() {
           </Link>
         </div>
       </div>
+
+      {/* Email Verification Modal */}
+      <EmailVerificationModal
+        isOpen={showVerificationModal}
+        email={formData.email}
+        userName={`${formData.firstName} ${formData.lastName}`}
+        onVerificationSuccess={handleVerificationSuccess}
+        onClose={handleCloseModal}
+      />
     </div>
   );
 }
