@@ -55,8 +55,22 @@ export default function RecentOrdersPage() {
     }
   }, [user]);
 
+  // Auto-refresh every 60 seconds for real-time updates
+  useEffect(() => {
+    if (user && user.role === 'teacher') {
+      const interval = setInterval(() => {
+        console.log('🔄 Auto-refreshing recent orders...');
+        loadRecentOrders();
+      }, 60000); // 60 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
   const loadRecentOrders = async () => {
     try {
+      console.log('🚀 Loading recent orders for user:', user?.id);
+
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -68,7 +82,13 @@ export default function RecentOrdersPage() {
             total_price,
             item_name,
             item_description,
-            item_image_url
+            item_image_url,
+            menu_item_id,
+            menu_items (
+              name,
+              description,
+              image_url
+            )
           )
         `)
         .eq('user_id', user?.id)
@@ -76,10 +96,16 @@ export default function RecentOrdersPage() {
         .order('created_at', { ascending: false })
         .limit(20);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error loading recent orders:', error);
+        throw error;
+      }
+
+      console.log('✅ Loaded recent orders:', data?.length || 0);
       setOrders(data || []);
     } catch (error) {
-      console.error('Error loading recent orders:', error);
+      console.error('💥 Error loading recent orders:', error);
+      setOrders([]); // Set empty array on error
     } finally {
       setLoading(false);
     }

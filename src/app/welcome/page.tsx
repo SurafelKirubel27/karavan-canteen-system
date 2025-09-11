@@ -8,8 +8,18 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function WelcomePage() {
   const [selectedType, setSelectedType] = useState<'teacher' | 'canteen' | null>(null);
+  const [showContent, setShowContent] = useState(false);
   const { user, isLoading } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    // Show content after a short delay, regardless of auth state
+    const timer = setTimeout(() => {
+      setShowContent(true);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!isLoading && user) {
@@ -22,12 +32,12 @@ export default function WelcomePage() {
     }
   }, [user, isLoading, router]);
 
-  if (isLoading) {
+  if (!showContent) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-700 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">Loading Karavan...</p>
         </div>
       </div>
     );

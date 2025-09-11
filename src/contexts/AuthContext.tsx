@@ -44,264 +44,141 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        await loadUserProfile(session.user);
-      } else {
-        setUser(null);
-      }
-      setIsLoading(false);
-    };
-
-    getInitialSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        await loadUserProfile(session.user);
-      } else {
-        setUser(null);
-      }
-      setIsLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    // FAST LOADING - No database calls, immediate ready state
+    console.log('🚀 FAST AUTH: Setting up instant authentication...');
+    setIsLoading(false);
+    console.log('✅ Authentication ready instantly');
   }, []);
-
-  const loadUserProfile = async (supabaseUser: SupabaseUser) => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', supabaseUser.id)
-        .single();
-
-      if (error) {
-        console.error('Error loading user profile:', error);
-        return;
-      }
-
-      if (data) {
-        setUser({
-          id: data.id,
-          email: data.email,
-          name: data.name,
-          role: data.role,
-          department: data.department,
-          phone: data.phone,
-          created_at: data.created_at
-        });
-      }
-    } catch (error) {
-      console.error('Error loading user profile:', error);
-    }
-  };
-
 
 
   const signUp = async (email: string, password: string, userData: Omit<User, 'id' | 'email'>) => {
     try {
-      console.log('Starting signup process for:', email);
+      console.log('🚀 REAL SIGNUP: Starting for:', email);
 
-      // Sign up with Supabase Auth (email confirmation disabled in dashboard)
-      const { data, error } = await supabase.auth.signUp({
+      // Email validation for Sandford School
+      const emailRegex = /^[a-zA-Z]+(\.[a-zA-Z]+)?@sandfordschool\.org$/;
+      if (!emailRegex.test(email)) {
+        return {
+          success: false,
+          error: 'Please use a valid Sandford School email address (name@sandfordschool.org or name.name@sandfordschool.org)'
+        };
+      }
+
+      // Create auth user in Supabase
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
-        password
+        password,
       });
 
-      if (error) {
-        console.error('Supabase auth signup error:', error);
-        return { success: false, error: error.message };
+      if (authError) {
+        console.error('❌ Auth signup error:', authError);
+        return { success: false, error: authError.message };
       }
 
-      if (data.user) {
-        console.log('Auth user created successfully:', data.user.id);
-
-        // Wait a moment for the user to be fully created
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Create user profile in our users table with retry logic
-        console.log('Creating user profile...');
-        let profileError = null;
-        let retryCount = 0;
-        const maxRetries = 3;
-
-        while (retryCount < maxRetries) {
-          const { error } = await supabase
-            .from('users')
-            .insert({
-              id: data.user.id,
-              email,
-              name: userData.name,
-              role: userData.role,
-              department: userData.department || 'General',
-              phone: userData.phone || '+251 911 000 000',
-              email_verified: true
-            });
-
-          if (!error) {
-            console.log('User profile created successfully');
-            return { success: true };
-          }
-
-          profileError = error;
-          retryCount++;
-          console.warn(`Profile creation attempt ${retryCount} failed:`, error.message);
-
-          if (retryCount < maxRetries) {
-            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
-          }
-        }
-
-        console.error('Profile creation failed after all retries:', profileError);
-        return { success: false, error: `Account created but profile setup failed. Please contact support.` };
+      if (!authData.user) {
+        return { success: false, error: 'Failed to create user account' };
       }
 
-      return { success: false, error: 'Failed to create user account' };
+      // Create user profile in database
+      const { error: profileError } = await supabase
+        .from('users')
+        .insert({
+          id: authData.user.id,
+          email,
+          name: userData.name,
+          role: userData.role,
+          department: userData.department || 'General',
+          phone: userData.phone || '+251 911 000 000',
+        });
+
+      if (profileError) {
+        console.error('❌ Profile creation error:', profileError);
+        // If profile creation fails, we should clean up the auth user
+        await supabase.auth.signOut();
+        return { success: false, error: 'Failed to create user profile. Please try again.' };
+      }
+
+      console.log('✅ User account and profile created successfully');
+      return { success: true };
+
     } catch (error) {
-      console.error('Signup error:', error);
+      console.error('💥 Signup error:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' };
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('Attempting to sign in:', email);
+      console.log('🚀 REAL LOGIN: Attempting to sign in:', email);
 
-      // Special handling for canteen staff
+      // Special handling for canteen staff - hardcoded credentials
       if (email === 'karavanstaff@sandfordschool.edu' && password === 'KaravanStaff123') {
-        console.log('Canteen staff login detected');
+        console.log('✅ Canteen staff login - AUTHORIZED');
 
-        // Check if canteen staff user exists in database
-        const { data: existingUser, error: checkError } = await supabase
+        // Get the real canteen user from database
+        const { data: canteenProfile, error: canteenError } = await supabase
           .from('users')
           .select('*')
-          .eq('email', email)
+          .eq('email', 'karavanstaff@sandfordschool.edu')
           .single();
 
-        if (checkError && checkError.code !== 'PGRST116') {
-          console.error('Error checking for existing canteen user:', checkError);
+        if (canteenError || !canteenProfile) {
+          console.error('❌ Canteen profile not found:', canteenError);
+          return { success: false, error: 'Canteen staff profile not found. Please contact administrator.' };
         }
 
-        if (!existingUser) {
-          console.log('Creating canteen staff user...');
-          // Create canteen staff user directly in database
-          const { data: newUser, error: createError } = await supabase
-            .from('users')
-            .insert({
-              id: 'canteen-staff-' + Date.now(), // Temporary ID
-              email: email,
-              name: 'Karavan Canteen Staff',
-              role: 'canteen',
-              department: 'Canteen Operations',
-              phone: '+251 911 123456'
-            })
-            .select()
-            .single();
-
-          if (createError) {
-            console.error('Failed to create canteen staff user:', createError);
-            return { success: false, error: 'Failed to create canteen staff account' };
-          }
-
-          console.log('Canteen staff user created:', newUser);
-          setUser(newUser);
-          return { success: true };
-        } else {
-          console.log('Existing canteen staff user found:', existingUser);
-          setUser(existingUser);
-          return { success: true };
-        }
+        setUser({
+          id: canteenProfile.id,
+          email: canteenProfile.email,
+          name: canteenProfile.name,
+          role: canteenProfile.role as 'canteen',
+          department: canteenProfile.department,
+          phone: canteenProfile.phone,
+        });
+        return { success: true };
       }
 
-      // Regular Supabase authentication for other users
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // For all other users, authenticate through Supabase
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        console.error('Auth error:', error);
-
-        // Handle email not confirmed errors (should not occur with disabled confirmation)
-        if (error.message.includes('email not confirmed') || error.message.includes('Email not confirmed')) {
-          console.log('Unexpected email confirmation error - this should not happen');
-          return { success: false, error: 'Authentication error. Please try again or contact support.' };
-        }
-
-        // Handle invalid credentials
-        if (error.message.includes('Invalid login credentials')) {
-          return { success: false, error: 'Invalid email or password. Please check your credentials and try again.' };
-        }
-
-        return { success: false, error: error.message };
+      if (authError) {
+        console.error('❌ Auth signin error:', authError);
+        return { success: false, error: authError.message };
       }
 
-      if (data.user) {
-        console.log('Auth successful, loading user profile...');
-
-        // Load user profile from our users table
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-
-        if (userError) {
-          console.error('Failed to load user profile:', userError);
-          console.error('User profile error details:', {
-            message: userError.message,
-            details: userError.details,
-            hint: userError.hint,
-            code: userError.code
-          });
-
-          // If profile doesn't exist, try to create a basic one
-          if (userError.code === 'PGRST116') { // No rows returned
-            console.log('No user profile found, creating basic profile...');
-
-            const { error: createError } = await supabase
-              .from('users')
-              .insert({
-                id: data.user.id,
-                email: data.user.email || email,
-                name: data.user.email?.split('@')[0] || 'User',
-                role: 'teacher', // Default role
-                department: 'General'
-              });
-
-            if (createError) {
-              console.error('Failed to create fallback profile:', createError);
-              return { success: false, error: `Profile creation failed: ${createError.message}. Please run the database fix script.` };
-            }
-
-            // Try to load the profile again
-            const { data: newUserData, error: newUserError } = await supabase
-              .from('users')
-              .select('*')
-              .eq('id', data.user.id)
-              .single();
-
-            if (newUserError) {
-              return { success: false, error: `Still failed to load profile: ${newUserError.message}. Please contact support.` };
-            }
-
-            console.log('Fallback user profile created and loaded:', newUserData);
-            setUser(newUserData);
-            return { success: true };
-          }
-
-          return { success: false, error: `Failed to load user profile: ${userError.message}. Please run the database fix script.` };
-        }
-
-        console.log('User profile loaded:', userData);
-        setUser(userData);
-        return { success: true };
+      if (!authData.user) {
+        return { success: false, error: 'Authentication failed' };
       }
 
-      return { success: false, error: 'Authentication failed' };
+      // Get user profile from database
+      const { data: userProfile, error: profileError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (profileError) {
+        console.error('❌ Profile fetch error:', profileError);
+        await supabase.auth.signOut();
+        return { success: false, error: 'User profile not found. Please contact support.' };
+      }
+
+      // Set user in context
+      setUser({
+        id: userProfile.id,
+        email: userProfile.email,
+        name: userProfile.name,
+        role: userProfile.role,
+        department: userProfile.department,
+        phone: userProfile.phone,
+        created_at: userProfile.created_at,
+      });
+
+      console.log('✅ User logged in successfully:', userProfile.name);
+      return { success: true };
     } catch (error) {
       console.error('Signin error:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -309,8 +186,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
+    try {
+      console.log('🚀 FAST SIGNOUT: Signing out instantly...');
+      // Clear user state immediately for fast logout
+      setUser(null);
+      // Clear any local storage or session data
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+      console.log('✅ User signed out successfully');
+    } catch (error) {
+      console.error('Signout error:', error);
+      // Still clear user state even if there's an error
+      setUser(null);
+    }
   };
 
   const updateProfile = async (userData: Partial<User>) => {
@@ -319,37 +209,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return { success: false, error: 'No user logged in' };
       }
 
-      console.log('Updating profile for user:', user.id, userData);
+      console.log('🚀 REAL UPDATE: Updating profile in database...');
 
-      // Add timeout to prevent hanging
-      const updatePromise = supabase
+      // Update profile in database
+      const { error } = await supabase
         .from('users')
         .update(userData)
-        .eq('id', user.id)
-        .select()
-        .single();
-
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Update timeout')), 10000)
-      );
-
-      const { data, error } = await Promise.race([updatePromise, timeoutPromise]) as any;
+        .eq('id', user.id);
 
       if (error) {
-        console.error('Profile update error:', error);
+        console.error('❌ Profile update error:', error);
         return { success: false, error: error.message };
       }
 
-      console.log('Profile updated successfully:', data);
-
-      // Update local user state immediately
+      // Update local user state
       setUser(prev => prev ? { ...prev, ...userData } : null);
+      console.log('✅ Profile updated successfully');
       return { success: true };
     } catch (error) {
       console.error('Profile update exception:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Update failed' };
     }
   };
+
+
+
+
 
   const value: AuthContextType = {
     user,

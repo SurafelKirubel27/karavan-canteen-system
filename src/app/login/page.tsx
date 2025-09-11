@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
+
 export default function LoginPage() {
   const [formData, setFormData] = useState({
     email: '',
@@ -53,6 +54,8 @@ export default function LoginPage() {
       [e.target.name]: e.target.value
     }));
   };
+
+
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -217,6 +220,8 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+
     </div>
   );
 }

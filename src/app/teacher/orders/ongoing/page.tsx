@@ -54,8 +54,22 @@ export default function OngoingOrdersPage() {
     }
   }, [user]);
 
+  // Auto-refresh every 30 seconds for real-time updates
+  useEffect(() => {
+    if (user && user.role === 'teacher') {
+      const interval = setInterval(() => {
+        console.log('🔄 Auto-refreshing ongoing orders...');
+        loadOngoingOrders();
+      }, 30000); // 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
   const loadOngoingOrders = async () => {
     try {
+      console.log('🚀 Loading ongoing orders for user:', user?.id);
+
       const { data, error } = await supabase
         .from('orders')
         .select(`
@@ -67,17 +81,29 @@ export default function OngoingOrdersPage() {
             total_price,
             item_name,
             item_description,
-            item_image_url
+            item_image_url,
+            menu_item_id,
+            menu_items (
+              name,
+              description,
+              image_url
+            )
           )
         `)
         .eq('user_id', user?.id)
         .in('status', ['pending', 'confirmed', 'preparing', 'ready'])
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error loading ongoing orders:', error);
+        throw error;
+      }
+
+      console.log('✅ Loaded ongoing orders:', data?.length || 0);
       setOrders(data || []);
     } catch (error) {
-      console.error('Error loading ongoing orders:', error);
+      console.error('💥 Error loading ongoing orders:', error);
+      setOrders([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
@@ -132,8 +158,8 @@ export default function OngoingOrdersPage() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log('🔄 Manual refresh triggered...');
+    await loadOngoingOrders();
     setRefreshing(false);
   };
 

@@ -79,7 +79,13 @@ export default function IncomingOrdersPage() {
             total_price,
             item_name,
             item_description,
-            item_image_url
+            item_image_url,
+            menu_item_id,
+            menu_items (
+              name,
+              description,
+              image_url
+            )
           )
         `)
         .in('status', ['pending', 'confirmed'])

@@ -126,58 +126,53 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
   const checkout = async (deliveryLocation: string, specialInstructions?: string, userId?: string) => {
     try {
-      // Check authentication - try both Supabase auth and passed userId
-      let currentUserId = userId;
+      console.log('🚀 CHECKOUT: Starting order placement...');
 
-      if (!currentUserId) {
-        // Fallback to Supabase auth
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (authUser) {
-          // Get user profile from database
-          const { data: userProfile } = await supabase
-            .from('users')
-            .select('id')
-            .eq('email', authUser.email)
-            .single();
-
-          if (userProfile) {
-            currentUserId = userProfile.id;
-          }
-        }
-      }
-
-      if (!currentUserId) {
+      // Validation checks
+      if (!userId) {
         showNotification('Please log in to place an order', 'error');
         return { success: false, error: 'User not authenticated' };
       }
 
-      console.log('Checkout with user ID:', currentUserId);
+      if (cartItems.length === 0) {
+        showNotification('Your cart is empty. Add items before checkout.', 'error');
+        return { success: false, error: 'Cart is empty' };
+      }
 
-      // Generate order number using database function
-      const { data: orderNumber, error: orderNumberError } = await supabase
-        .rpc('generate_order_number');
+      if (!deliveryLocation?.trim()) {
+        showNotification('Please provide a delivery location', 'error');
+        return { success: false, error: 'Delivery location required' };
+      }
 
-      if (orderNumberError) throw orderNumberError;
+      console.log('Checkout with user ID:', userId);
+      console.log('Cart items:', cartItems.length);
+      console.log('Delivery location:', deliveryLocation);
 
-      // Create the order
+      // Generate simple order number
+      const orderNumber = `KRV-${Date.now()}`;
+
+      // Create the order with correct schema
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
           order_number: orderNumber,
-          user_id: currentUserId,
+          user_id: userId,
           status: 'pending',
           total_amount: getCartTotal(),
-          service_fee: 25.00,
           delivery_location: deliveryLocation,
-          special_instructions: specialInstructions,
-          payment_method: 'cash'
+          special_instructions: specialInstructions || null
         })
         .select()
         .single();
 
-      if (orderError) throw orderError;
+      if (orderError) {
+        console.error('❌ Order creation error:', orderError);
+        throw orderError;
+      }
 
-      // Create order items
+      console.log('✅ Order created:', order.id);
+
+      // Create order items with correct schema
       const orderItems = cartItems.map(item => ({
         order_id: order.id,
         menu_item_id: item.id,
@@ -193,7 +188,12 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         .from('order_items')
         .insert(orderItems);
 
-      if (itemsError) throw itemsError;
+      if (itemsError) {
+        console.error('❌ Order items creation error:', itemsError);
+        throw itemsError;
+      }
+
+      console.log('✅ Order items created successfully');
 
       // Clear cart and show success
       clearCart();
@@ -201,9 +201,25 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
 
       return { success: true, orderNumber };
     } catch (error: any) {
-      console.error('Checkout error:', error);
-      showNotification('Failed to place order. Please try again.', 'error');
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      console.error('💥 Checkout error:', error);
+
+      // Provide specific error messages based on error type
+      let errorMessage = 'Failed to place order. Please try again.';
+
+      if (error?.code === '23503') {
+        errorMessage = 'User authentication error. Please log out and log back in.';
+      } else if (error?.code === '23505') {
+        errorMessage = 'Order number conflict. Please try again.';
+      } else if (error?.message?.includes('network')) {
+        errorMessage = 'Network error. Please check your connection and try again.';
+      } else if (error?.message?.includes('timeout')) {
+        errorMessage = 'Request timeout. Please try again.';
+      } else if (error?.message) {
+        errorMessage = `Order failed: ${error.message}`;
+      }
+
+      showNotification(errorMessage, 'error');
+      return { success: false, error: errorMessage };
     }
   };
 

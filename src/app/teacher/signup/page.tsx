@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import KaravanLogo from '@/components/KaravanLogo';
-import EmailVerificationModal from '@/components/EmailVerificationModal';
+
 
 export default function TeacherSignupPage() {
   const { signUp } = useAuth();
@@ -22,8 +22,7 @@ export default function TeacherSignupPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [showVerificationModal, setShowVerificationModal] = useState(false);
-  const [pendingUserData, setPendingUserData] = useState<any>(null);
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -58,34 +57,23 @@ export default function TeacherSignupPage() {
     }
 
     try {
-      // Store user data for after email verification
+      // Create user account directly (no email verification needed)
       const userData = {
-        email: formData.email,
-        password: formData.password,
         name: `${formData.firstName} ${formData.lastName}`,
         role: 'teacher',
         department: formData.department,
         phone: formData.phone,
       };
 
-      setPendingUserData(userData);
+      console.log('🚀 Creating teacher account directly...');
+      const result = await signUp(formData.email, formData.password, userData);
 
-      // Send verification email
-      const emailResponse = await fetch('/api/auth/send-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email,
-          userName: `${formData.firstName} ${formData.lastName}`
-        })
-      });
-
-      const emailData = await emailResponse.json();
-
-      if (emailData.success) {
-        setShowVerificationModal(true);
+      if (result.success) {
+        console.log('✅ Teacher account created successfully');
+        router.push('/teacher/login?message=Account created successfully! You can now sign in.');
       } else {
-        setError(emailData.error || 'Failed to send verification email. Please try again.');
+        console.error('❌ Signup failed:', result.error);
+        setError(result.error || 'Account creation failed. Please try again.');
       }
     } catch (error) {
       console.error('Signup error:', error);
@@ -95,39 +83,7 @@ export default function TeacherSignupPage() {
     }
   };
 
-  const handleVerificationSuccess = async () => {
-    if (!pendingUserData) return;
 
-    setIsLoading(true);
-    try {
-      // Now create the user account after email verification
-      const result = await signUp(pendingUserData.email, pendingUserData.password, {
-        name: pendingUserData.name,
-        role: pendingUserData.role,
-        department: pendingUserData.department,
-        phone: pendingUserData.phone,
-      });
-
-      if (result.success) {
-        setShowVerificationModal(false);
-        router.push('/teacher/login?message=Account created and verified successfully! You can now sign in.');
-      } else {
-        setError(result.error || 'Account creation failed. Please try again.');
-        setShowVerificationModal(false);
-      }
-    } catch (error) {
-      console.error('Account creation error:', error);
-      setError('Account creation failed. Please try again.');
-      setShowVerificationModal(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCloseModal = () => {
-    setShowVerificationModal(false);
-    setPendingUserData(null);
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-yellow-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -343,14 +299,7 @@ export default function TeacherSignupPage() {
         </div>
       </div>
 
-      {/* Email Verification Modal */}
-      <EmailVerificationModal
-        isOpen={showVerificationModal}
-        email={formData.email}
-        userName={`${formData.firstName} ${formData.lastName}`}
-        onVerificationSuccess={handleVerificationSuccess}
-        onClose={handleCloseModal}
-      />
+
     </div>
   );
 }

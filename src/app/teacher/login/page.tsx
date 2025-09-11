@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import KaravanLogo from '@/components/KaravanLogo';
 
+
 export default function TeacherLoginPage() {
   const { signIn } = useAuth();
   const router = useRouter();
@@ -16,7 +17,6 @@ export default function TeacherLoginPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -179,6 +179,8 @@ export default function TeacherLoginPage() {
           </Link>
         </div>
       </div>
+
+
     </div>
   );
 }

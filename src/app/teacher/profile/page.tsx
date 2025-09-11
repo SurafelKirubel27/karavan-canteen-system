@@ -142,8 +142,8 @@ export default function TeacherProfilePage() {
               <Link href="/teacher/dashboard" className="text-gray-700 hover:text-emerald-700">Dashboard</Link>
               <span className="text-emerald-700 font-medium">Profile</span>
               <button
-                onClick={() => {
-                  signOut();
+                onClick={async () => {
+                  await signOut();
                   router.push('/welcome');
                 }}
                 className="text-gray-700 hover:text-red-600"

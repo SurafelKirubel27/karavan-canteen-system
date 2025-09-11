@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import KaravanLogo from '@/components/KaravanLogo';
 
+
 export default function CanteenLoginPage() {
   const { signIn } = useAuth();
   const router = useRouter();
@@ -16,7 +17,6 @@ export default function CanteenLoginPage() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -31,13 +31,26 @@ export default function CanteenLoginPage() {
     setError('');
 
     try {
-      // Real authentication with Supabase
+      // Strict validation for canteen staff credentials
+      if (formData.email !== 'karavanstaff@sandfordschool.edu') {
+        setError('Invalid canteen staff email address. Please use the correct staff email.');
+        setIsLoading(false);
+        return;
+      }
+
+      if (formData.password !== 'KaravanStaff123') {
+        setError('Invalid canteen staff password. Please check your credentials.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Authenticate with the validated credentials
       const result = await signIn(formData.email, formData.password);
 
       if (result.success) {
         router.push('/canteen/dashboard');
       } else {
-        setError(result.error || 'Invalid email or password');
+        setError('Authentication failed. Please contact system administrator.');
       }
     } catch (err) {
       setError('Login failed. Please try again.');
@@ -181,6 +194,8 @@ export default function CanteenLoginPage() {
           </Link>
         </div>
       </div>
+
+
     </div>
   );
 }

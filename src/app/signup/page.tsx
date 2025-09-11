@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 
+
 export default function SignupPage() {
   const [formData, setFormData] = useState({
     name: '',
@@ -63,6 +64,8 @@ export default function SignupPage() {
       [e.target.name]: e.target.value
     }));
   };
+
+
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
@@ -282,6 +285,8 @@ export default function SignupPage() {
           </div>
         </div>
       </div>
+
+
     </div>
   );
 }

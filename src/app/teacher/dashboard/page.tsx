@@ -35,6 +35,9 @@ export default function TeacherDashboard() {
   useEffect(() => {
     if (user && user.role === 'teacher') {
       loadMenuItems();
+    } else if (user && user.role !== 'teacher') {
+      // If user is not a teacher, stop loading immediately
+      setLoading(false);
     }
   }, [user]);
 
